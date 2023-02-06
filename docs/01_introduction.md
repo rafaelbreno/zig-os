@@ -4,6 +4,9 @@
 1. [About the Project](#about-the-project)
     - [Q&A](#q&a)
     - [Pre-requisites](#pre-requisites)
+2. [Setup](#setup)
+    - [Generate Build Exe](#generate-build-exe)
+    - [Disabling standard library](#disabling-standard-library)
 
 
 ## About the Project
@@ -28,3 +31,11 @@
     - > [...] create an executable that can be run without an underlying operating system. [...]
 3. Use what's available:
     - > TODO: What can be used?
+
+## Setup
+
+### Generate Build Exe
+Run: 
+> $ zig init-exe
+
+### Disabling standard library
