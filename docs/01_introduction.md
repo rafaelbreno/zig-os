@@ -18,6 +18,8 @@
     - > I want to learn.
 3. Why zig?
     - > ... I want to learn ... zig
+4. Which OS target?
+    - I'll try to develop it to x86_64 architecture.
 
 <!-- 
     TODO: 
@@ -31,6 +33,8 @@
     - > [...] create an executable that can be run without an underlying operating system. [...]
 3. Use what's available:
     - > TODO: What can be used?
+4. Install `qemu-system-x86`
+    - > We'll be able to use `qemu-system-x86_64` to run our Minimal Kernel/OS.
 
 ## Setup
 
