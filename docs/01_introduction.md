@@ -43,3 +43,14 @@ Run:
 > $ zig init-exe
 
 ### Disabling standard library
+- Remove STD code in `src/main.zig`, it will look like this:
+```zig
+pub fn main() !void {}
+```
+
+- In `build.zig`, append the following:
+```zig
+pub fn panic(_: []const u8, _: ?*builtin.StackTrace) noreturn {
+    while (true) {}
+}
+```
