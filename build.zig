@@ -1,12 +1,30 @@
 const std = @import("std");
+const Builder = std.build.Builder;
+const Target = std.Target;
+const CrossTarget = std.zig.CrossTarget;
+const Feature = std.Target.Cpu.Feature;
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
 pub fn build(b: *std.Build) void {
+    const features = Target.x86.Feature;
+    var disabled_features = Feature.Set.empty;
+    disabled_features.addFeature(@enumToInt(features.mmx));
+    disabled_features.addFeature(@enumToInt(features.sse));
+    disabled_features.addFeature(@enumToInt(features.sse2));
+    disabled_features.addFeature(@enumToInt(features.avx));
+    disabled_features.addFeature(@enumToInt(features.avx2));
+
+    var enabled_features = Feature.Set.empty;
+    enabled_features.addFeature(@enumToInt(features.soft_float));
+
+
+    const dynamic_linker = std.Target.DynamicLinker.init("linker.ld");
     const default_target = std.zig.CrossTarget{
         .cpu_arch = std.Target.Cpu.Arch.x86,
         .os_tag = std.Target.Os.Tag.freestanding,
+        .dynamic_linker = dynamic_linker,
     };
     const targetOptions = std.build.StandardTargetOptionsArgs{
         .default_target = default_target,
