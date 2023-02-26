@@ -4,11 +4,19 @@ const std = @import("std");
 // declaratively construct a build graph that will be executed by an external
 // runner.
 pub fn build(b: *std.Build) void {
+    const default_target = std.zig.CrossTarget{
+        .cpu_arch = std.Target.Cpu.Arch.x86,
+        .os_tag = std.Target.Os.Tag.freestanding,
+    };
+    const targetOptions = std.build.StandardTargetOptionsArgs{
+        .default_target = default_target,
+    };
+
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which
     // means any target is allowed, and the default is native. Other options
     // for restricting supported target set are available.
-    const target = b.standardTargetOptions(.{});
+    const target = b.standardTargetOptions(targetOptions);
 
     // Standard optimization options allow the person running `zig build` to select
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
