@@ -27,22 +27,6 @@ pub fn build(b: *std.Build) void {
         .cpu_features_add = enabled_features,
     };
 
-    const dynamic_linker = std.Target.DynamicLinker.init("linker.ld");
-    const default_target = std.zig.CrossTarget{
-        .cpu_arch = std.Target.Cpu.Arch.x86,
-        .os_tag = std.Target.Os.Tag.freestanding,
-        .dynamic_linker = dynamic_linker,
-    };
-    const targetOptions = std.build.StandardTargetOptionsArgs{
-        .default_target = default_target,
-    };
-
-    // Standard target options allows the person running `zig build` to choose
-    // what target to build for. Here we do not override the defaults, which
-    // means any target is allowed, and the default is native. Other options
-    // for restricting supported target set are available.
-    const target = b.standardTargetOptions(targetOptions);
-
     // Standard optimization options allow the person running `zig build` to select
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
     // set a preferred release mode, allowing the user to decide how to optimize.
@@ -56,6 +40,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    exe.setLinkerScriptPath(.{ .path = "src/linker.ld" });
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
