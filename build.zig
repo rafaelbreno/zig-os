@@ -19,6 +19,13 @@ pub fn build(b: *std.Build) void {
     var enabled_features = Feature.Set.empty;
     enabled_features.addFeature(@enumToInt(features.soft_float));
 
+    const target = CrossTarget{
+        .cpu_arch = Target.Cpu.Arch.x86,
+        .os_tag = Target.Os.Tag.freestanding,
+        .abi = Target.Abi.none,
+        .cpu_features_sub = disabled_features,
+        .cpu_features_add = enabled_features,
+    };
 
     const dynamic_linker = std.Target.DynamicLinker.init("linker.ld");
     const default_target = std.zig.CrossTarget{
