@@ -5,8 +5,8 @@
     - [Q&A](#q&a)
     - [Pre-requisites](#pre-requisites)
 2. [Setup](#setup)
-    - [Generate Build Exe](#generate-build-exe)
-    - [Disabling standard library](#disabling-standard-library)
+    - [Tools](#tools)
+    - [Create Zig Build](#create-zig-build)
         - [Setting Freestanding Target](#setting-freestanding-target)
         - [Fixing LLD Link Error](#fixing-lld-link-error)
 
@@ -39,63 +39,33 @@
     - > We'll be able to use `qemu-system-x86_64` to run our Minimal Kernel/OS.
 
 ## Setup
+This section will show you how to setup your environment to start working on the step-by-step guide.
 
-### Create Zig File
-- `zig-os.zig`:
-```zig
-pub fn main() !void {}
-```
+### Tools
+- [Zig](https://ziglang.org/)
+- [qemu-system](https://www.qemu.org/)
+    - I'll be using the `qemu-system-x86`
+- [vinagre](https://gitlab.gnome.org/Archive/vinagre)
 
-### Disabling standard library
-- In `zig-os.zig`, append the following:
-```zig
-pub fn panic(_: []const u8, _: ?*@import("std").builtin.StackTrace, _: ?usize) noreturn {
-    while (true) {}
-}
-```
-
-#### Setting Freestanding Target
-To disable the standard library we need to compile our Zig code into a _"freestanding"_ / _"bare-metal"_ binary, fortunately Zig's compiler allows us to set the target as _"freestanding"_. 
-You can see it if you run: 
-> $ zig targets | head -n 70
-```json
-{
- "arch": [
-  "arm",
-  "armeb",
-  "aarch64",
-  "aarch64_be",
-  "aarch64_32",
-  // ...
- ],
- "os": [
-  "freestanding",
-  // ...
-}
-```
-
-You could build it running:
-> $ zig build-exe -target <arch><sub>-<os>-<abi>
-For example, to build a binary for my _Arch Linux x86\_64_
-> $ zig build-exe build.zig -target aarch64-freestanding
-It will print the following error:
+### Create Zig Build
+- > $ zig init-exe
+This will generate the following structure:
 ```shell
-LLD Link... warning(link): unexpected LLD stderr:
-ld.lld: warning: cannot find entry symbol _start; not setting start address
+.
+├── build.zig
+└── src
+    └── main.zig
 ```
 
-So, we'll need to fix it!
+- `build.zig`
+    - This file is responsible for defining how to build your program
+    - You can define things like:
+        - Target: Architecture, Operational System, etc.
+        - Optimization: Release, Debug, etc.
+- `src/main.zig`
+    - This is the program itself that will be compiled 
 
-#### Fixing LLD Link Error
-I don't know what LLD is, but I think it's something about we're trying to build a freestanding binary but trying to link it against some kind of libc.
+### Final
+So, yeah, now we should have everything to start working on our minimal kernel!
 
-
-[StandardTargetOptions](https://github.com/ziglang/zig-bootstrap/blob/8aa969bd1ad4704a6f351db54aac7ca11de73a9d/zig/lib/std/build.zig#L819)
-```zig
-pub const StandardTargetOptionsArgs = struct {
-    whitelist: ?[]const CrossTarget = null,
-
-    default_target: CrossTarget = CrossTarget{},
-};
-```
-[CrossTarget](https://github.com/ziglang/zig-bootstrap/blob/8aa969bd1ad4704a6f351db54aac7ca11de73a9d/zig/lib/std/zig/CrossTarget.zig)
+[Chapter 2 - Hello World](./02_hello_world.md)
