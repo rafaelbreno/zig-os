@@ -7,9 +7,6 @@
 2. [Setup](#setup)
     - [Tools](#tools)
     - [Create Zig Build](#create-zig-build)
-        - [Setting Freestanding Target](#setting-freestanding-target)
-        - [Fixing LLD Link Error](#fixing-lld-link-error)
-
 
 ## About the Project
 
