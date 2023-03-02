@@ -39,7 +39,7 @@
 This section will show you how to setup your environment to start working on the step-by-step guide.
 
 ### Tools
-- [Zig](https://ziglang.org/)
+- [Zig _(0.11)_](https://ziglang.org/)
 - [qemu-system](https://www.qemu.org/)
     - I'll be using the `qemu-system-x86`
 - [vinagre](https://gitlab.gnome.org/Archive/vinagre)
