@@ -1,24 +1,25 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
-pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+const MultiBoot = extern struct {
+    magic: i32,
+    flags: i32,
+    checksum: i32,
+};
 
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
+// 32 bits / 4 bytes integers
+const ALIGN = 1 << 0; // 0000 0000 0000 0000 0000 0000 0000 0001
+const MEMINFO = 1 << 1; // 0000 0000 0000 0000 0000 0000 0000 0010
+const FLAGS = ALIGN | MEMINFO; // 0000 0000 0000 0000 0000 0000 0000 0000 0011
+const MAGIC = 0x1BADB002; // 0001 1011 1010 1101 1011 0000 0000 0010
 
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+export var multiboot align(4) linksection(".multiboot") = MultiBoot{
+    .magic = MAGIC,
+    .flags = FLAGS,
+    .checksum = -(MAGIC + FLAGS),
+};
 
-    try bw.flush(); // don't forget to flush!
+export fn _start() callconv(.Naked) noreturn {
+    while (true) {}
 }
 
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
-}
