@@ -4,6 +4,12 @@ If you didn't read the [First Chapter(Introduction)](./01_introduction.md), plea
 ## Summary
 1. [Introduction](#introduction)
     - [Running as it is](#running-as-it-is)
+2. [PHV ELF Note](#phv-elf-note)
+    - [PHV](#phv)
+    - [ELF Note](#elf-note)
+3. [Target](#target)
+    - [Setting x86-freestanding Target](#setting-x86-freestanding-target)
+    - [Building with Custom Target](#building-with-custom-target)
 ## Introduction
 In this Chapter, we'll be trying to show a simple "Hello, World" running on a `x86-freestanding` architecture.
 
@@ -60,3 +66,54 @@ _"[...] is a common standard file format for executable files, object code, shar
 
 ### Resolution
 So, basically the binary that we're trying to run as a kernel is missing the `PVH ELF Note`, to solve that:
+## Target
+Basically what is happening when running `zig build` is building a binary matching your machine architecture, let's change this:
+
+In `build.zig`, we currently have:
+```zig
+const std = @import("std");
+
+// ...
+pub fn build(b: *std.Build) void {
+    // ...
+    const target = b.standardTargetOptions(.{});
+
+    /// ...
+}
+```
+
+#### Setting x86-freestanding Target
+Let's add the following imports after `const std = ...`: 
+```zig
+const std = @import("std");
+const Target = std.Target;
+const CrossTarget = std.zig.CrossTarget;
+```
+- `Target`
+    - It stores the `enum` for different CPU architectures and OS tags
+- `CrossTarget`
+    - This struct will set our `const target` value/type.
+
+
+Then, let's declare our target as:
+```zig
+pub fn build(b: *std.Build) void {
+    const target = CrossTarget{
+        .cpu_arch = Target.Cpu.Arch.x86,
+        .os_tag = Target.Os.Tag.freestanding,
+    };
+    // ...
+}
+```
+Our CPU architecture will be `x86` and the OS tag `freestanding`, meaning: We want to build a binary for `CPU x86` without and underlying OS.
+
+Let's try to build and run it again:
+
+#### Building with Custom Target
+- > $ zig build
+- > $ qemu-system-x86_64 -kernel zig-out/bin/zig-os
+Output: 
+```shell
+qemu-system-x86_64: Error loading uncompressed kernel without PVH ELF Note
+```
+Hmmm, we got the same error, again. Maybe it's a linker issue?
