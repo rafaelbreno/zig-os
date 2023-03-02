@@ -10,6 +10,10 @@ If you didn't read the [First Chapter(Introduction)](./01_introduction.md), plea
 3. [Target](#target)
     - [Setting x86-freestanding Target](#setting-x86-freestanding-target)
     - [Building with Custom Target](#building-with-custom-target)
+4. [Linker](#linker)
+    - [Linker File](#linker-file)
+    - [Using LD File](#using-ld-file)
+    - [Building with Linker](#building-with-linker)
 ## Introduction
 In this Chapter, we'll be trying to show a simple "Hello, World" running on a `x86-freestanding` architecture.
 
@@ -117,3 +121,91 @@ Output:
 qemu-system-x86_64: Error loading uncompressed kernel without PVH ELF Note
 ```
 Hmmm, we got the same error, again. Maybe it's a linker issue?
+## Linker
+_"[...] An LD file is a script written in the GNU "linker command language." It contains one or more commands that are used to configure how input files storing static object code are to be compiled into a single executable program or library for the GNU operating system. [...]"_
+
+
+Let's add a `src/linker.ld` file:
+```ld
+ENTRY(_start)
+ 
+SECTIONS {
+	. = 1M;
+ 
+	.text : ALIGN(4K) {
+		KEEP(*(.multiboot))
+		*(.text)
+	}
+ 
+	.rodata : ALIGN(4K) {
+		*(.rodata)
+	}
+ 
+	.data : ALIGN(4K) {
+		*(.data)
+	}
+ 
+	.bss : ALIGN(4K) {
+		*(COMMON)
+		*(.bss)
+	}
+}
+```
+Well, that's a lot of things that I've never seen before, let's try to understand what is happening.
+
+### Linker File
+- `01: ENTRY(_start)`
+    - [ENTRY](https://ftp.gnu.org/old-gnu/Manuals/ld-2.9.1/html_chapter/ld_3.html#SEC24)
+    - _"[...] command specifically for defining the first executable instruction in an output file [...]"_
+    - So this, mean that we'll be specifying which section of our code will be the entrypoint when running our binary.
+    - In this case, we defined as `_start`
+- `03: SECTIONS {`
+    - [SECTIONS](https://ftp.gnu.org/old-gnu/Manuals/ld-2.9.1/html_chapter/ld_3.html#SEC17)
+    - _"[...] `SECTIONS` command controls exactly where input sections are placed into output sections, their order in the output file, and to which output sections they are allocated. [...]"_
+    - So basically with `SECTIONS` you can do one of:
+        - define the entry point
+        - assign a value to a symbol
+        - describe the placement of a named output section, and which input sections go into it.
+- `04: . = 1M;`
+    - [Location Counter](https://ftp.gnu.org/old-gnu/Manuals/ld-2.9.1/html_chapter/ld_3.html#SEC10)
+    - _"The special linker variable dot `.` always contains the current output location counter. [...]"_
+    - This will reserve a 1M storage section in our _kernel_
+        - TODO: CHECK THIS - I'm not sure about it.
+- `06: .text : ALIGN(4K) {`
+    - `.text` is the name of the _section_
+    - `: ALIGN(4K) {` 
+        - [Arithmetic Functions](https://ftp.gnu.org/old-gnu/Manuals/ld-2.9.1/html_chapter/ld_3.html#SEC14)
+        - _"`ALIGN(exp)` - Return the result of the current location counter `(.)` aligned to the next `exp` boundary. [...]"_
+- `07: KEEP(*(.multiboot))`
+    - [KEEP](https://www.microchip.com/forums/m384725.aspx)
+    - This marks a section that SHOULDN'T be eliminated
+    - `*(.multiboot)`
+        - `*(exp)` - _"You can name one or more sections from your input files, for insertion in the current output section. [...]"_
+TODO: FINISH THIS SECTION
+
+### Using LD File
+To use our `src/linker.ld` file we should modify our `build.zig`, loading the `src/linker.ld` using:
+- `exe.setLinkerScriptPath(.{ .path = "src/linker.ld" });`
+
+```zig
+const exe = b.addExecutable(.{
+    .name = "zig-os",
+    // In this case the main source file is merely a path, however, in more
+    // complicated build scripts, this could be a generated file.
+    .root_source_file = .{ .path = "src/main.zig" },
+    .target = target,
+    .optimize = optimize,
+});
+
+exe.setLinkerScriptPath(.{ .path = "src/linker.ld" });
+```
+
+### Building with Linker
+Let's try again building it.
+1. > $ zig build
+2. > $ qemu-system-x86_64 -kernel zig-out/bin/zig-os
+```shell
+qemu-system-x86_64: Error loading uncompressed kernel without PVH ELF Note
+```
+
+Still, the same error, if we look at the first line of our `linker.ld` file, you can see that the entrypoint of our program should be `_start`, but we don't have it, so, in the next section we'll be modifying our `src/main.zig` and finally be able to "boot" our kernel.
