@@ -29,3 +29,7 @@ fn vgaEntry(uc: u8, color: u8) u16 {
     // build the 2 bytes representing the printable caracter w/ EntryColor.
     return uc | (c << 8);
 }
+
+const VGA_WIDTH = 80;
+const VGA_HEIGHT = 45;
+

@@ -351,10 +351,18 @@ fn vgaEntryColor(fg: VgaColor, bg: VgaColor) u8 {
     return fg | (bg << 4);
 }
 
+// character | color
 fn vgaEntry(uc: u8, color: u8) u16 {
     var c: u16 = color;
 
     // build the 2 bytes representing the printable caracter w/ EntryColor.
     return uc | (c << 8);
 }
+```
+
+### Dimensions
+We need to define somehow how many rows/columns the terminal will have, so before we build our terminal, let's define some constants for it:
+```zig
+const VGA_WIDTH = 80;
+const VGA_HEIGHT = 45;
 ```
