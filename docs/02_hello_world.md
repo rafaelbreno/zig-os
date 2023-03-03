@@ -20,6 +20,7 @@ If you didn't read the [First Chapter(Introduction)](./01_introduction.md), plea
         - [Linking Multiboot](#Linking Multiboot)
     - [Entry Function](#entry-function)
         - [Defining Start](#defining-start)
+6. [Printing Hello](#printing-hello)
 
 ## Introduction
 In this Chapter, we'll be trying to show a simple "Hello, World" running on a `x86-freestanding` architecture.
@@ -318,3 +319,42 @@ Now, in another terminal run:
 > $ vinagre localhost:5900
 
 This should open a window with our kernel running, well, it's doing much but it's something.
+
+## Printing Hello
+Now that we've our kernel ~barely~ "working", it's time to write something in the terminal.
+
+### Colors
+First we need to define some constants:
+```zig
+// Because this is a 16 bits terminal, we need to define the 16 colors
+const VgaColor = u8;
+const VGA_COLOR_BLACK = 0;
+const VGA_COLOR_BLUE = 1;
+const VGA_COLOR_GREEN = 2;
+const VGA_COLOR_CYAN = 3;
+const VGA_COLOR_RED = 4;
+const VGA_COLOR_MAGENTA = 5;
+const VGA_COLOR_BROWN = 6;
+const VGA_COLOR_LIGHT_GREY = 7;
+const VGA_COLOR_DARK_GREY = 8;
+const VGA_COLOR_LIGHT_BLUE = 9;
+const VGA_COLOR_LIGHT_GREEN = 10;
+const VGA_COLOR_LIGHT_CYAN = 11;
+const VGA_COLOR_LIGHT_RED = 12;
+const VGA_COLOR_LIGHT_MAGENTA = 13;
+const VGA_COLOR_LIGHT_BROWN = 14;
+const VGA_COLOR_WHITE = 15;
+
+// foreground | background color.
+fn vgaEntryColor(fg: VgaColor, bg: VgaColor) u8 {
+    // will build the byte representing the color.
+    return fg | (bg << 4);
+}
+
+fn vgaEntry(uc: u8, color: u8) u16 {
+    var c: u16 = color;
+
+    // build the 2 bytes representing the printable caracter w/ EntryColor.
+    return uc | (c << 8);
+}
+```
