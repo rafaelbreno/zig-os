@@ -321,11 +321,12 @@ Now, in another terminal run:
 This should open a window with our kernel running, well, it's doing much but it's something.
 
 ## Printing Hello
-Now that we've our kernel ~barely~ "working", it's time to write something in the terminal.
+Now that we've our kernel ~barely~ "working", it's time to write something in the terminal, let's create the file: `src/terminal/terminal.zig`
 
 ### Colors
 First we need to define some constants:
 ```zig
+// src/terminal/terminal.zig
 // Because this is a 16 bits terminal, we need to define the 16 colors
 const VgaColor = u8;
 const VGA_COLOR_BLACK = 0;
@@ -363,6 +364,107 @@ fn vgaEntry(uc: u8, color: u8) u16 {
 ### Dimensions
 We need to define somehow how many rows/columns the terminal will have, so before we build our terminal, let's define some constants for it:
 ```zig
+// src/terminal/terminal.zig
 const VGA_WIDTH = 80;
 const VGA_HEIGHT = 45;
 ```
+
+### Terminal Struct
+First, we declared the struct:
+```zig
+// src/terminal/terminal.zig
+pub const terminal = struct {}
+```
+- `pub` - Keyword to define that it's public, allowing us to import it from `src/main.zig`
+
+But an empty struct, won't do nothing, let's start filling it with code:
+
+#### Attributes
+```zig
+// row / column are variable to allow us to keep up 
+// with the current position in the buffer
+var row: usize = 0;
+var column: usize = 0;
+
+// color will be a u16 value that represents the fore/back ground color
+// of our terminal.
+var color = vgaEntryColor(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+
+// buffer is the data in our screen, so if we want to print "Hello, World!"
+// we'll need to store it in our buffer
+const buffer = @intToPtr([*]volatile u16, 0xB8000);
+```
+
+- `const buffer = @intToPtr([*]volatile u16, 0xB8000);`
+    - `const buffer`: declaring a constant named _"buffer"_
+    - `@intToPtr`: 
+        - _"Converts an integer to a pointer. [...]"_
+        - `@intToPtr(comptime DestType: type, address: usize) DestType`
+    - `[*] volatile u16`: 
+        - `[*] T` _"many-item pointer to unknown number of items."_ of type `T`
+        - `volatile`: _"can be used to denote loads or stores of a pointer have side effects. It can also modify an inline assembly expression to denote it has side effects."_
+        - `u16`: 16 bits - 2 bytes
+    - `0xB8000`: _"[...] The text screen video memory for colour monitors resides at 0xB8000 [...]"_
+
+#### Functions
+```zig
+// initialize fills the current buffer with the empty character(' ').
+pub fn initialize() void {
+    var y: usize = 0;
+    while (y < VGA_HEIGHT) : (y += 1) {
+        var x: usize = 0;
+        while (x < VGA_WIDTH) : (x += 1) {
+            putCharAt(' ', color, x, y);
+        }
+    }
+}
+
+// setColor updates the current color value.
+fn setColor(new_color: u8) void {
+    color = new_color;
+}
+
+// putCharAt receives:
+// - `char` the u8.
+// - `char_color` the char color.
+// - `x` - the column position
+// - `y` - the row position
+// and with that, stores the `char` in the given buffer [index]
+fn putCharAt(char: u8, char_color: u8, x: usize, y: usize) void {
+    const index = y * VGA_WIDTH + x;
+    buffer[index] = vgaEntry(char, char_color);
+}
+
+// putChar will store a byte in the current buffer position
+// and then update the current position to the next one.
+fn putChar(c: u8) void {
+    putCharAt(c, color, column, row);
+    column += 1;
+    if (column == VGA_WIDTH) {
+        column = 0;
+        row += 1;
+        if (row == VGA_HEIGHT)
+            row = 0;
+    }
+}
+
+// write receives an array of data and stores in the buffer.
+pub fn write(data: []const u8) void {
+    for (data) |c|
+        putChar(c);
+}
+```
+
+#### 
+
+## References
+- [PVH](https://xenbits.xen.org/docs/4.6-testing/misc/pvh.html)
+- [HVM](https://docs.rightscale.com/faq/What_is_Hardware_Virtual_Machine_or_HVM.html)
+- [PV](https://wiki.xenproject.org/wiki/Paravirtualization_(PV))
+- [PV HVM](https://www.linux.org/threads/hardware-virtual-machine-hvm-and-paravirtualization-pv.12475/)
+- [PV HVM (AWS)](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/virtualization_types.html)
+- [ELF](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format)
+- [Linker Script](https://ftp.gnu.org/old-gnu/Manuals/ld-2.9.1/html_chapter/ld_3.html)
+- [LD File](https://fileinfo.com/extension/ld)
+- [OSDev ORG](https://wiki.osdev.org/Main_Page)
+- [0xB8000](https://wiki.osdev.org/Printing_To_Screen)
