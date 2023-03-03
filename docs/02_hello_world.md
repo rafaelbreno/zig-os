@@ -21,6 +21,14 @@ If you didn't read the [First Chapter(Introduction)](./01_introduction.md), plea
     - [Entry Function](#entry-function)
         - [Defining Start](#defining-start)
 6. [Printing Hello](#printing-hello)
+    - [Colors](#colors)
+    - [Dimensions](#dimensions)
+    - [Terminal Struct](#terminal-struct)
+        - [Attributes](#attributes)
+        - [Functions](#functions)
+        - [Implementing Terminal](#implementing-terminal)
+        - [Printing](#printing)
+    - [Next Steps](#next-steps)
 
 ## Introduction
 In this Chapter, we'll be trying to show a simple "Hello, World" running on a `x86-freestanding` architecture.
@@ -455,7 +463,39 @@ pub fn write(data: []const u8) void {
 }
 ```
 
-#### 
+#### Implementing Terminal
+In `src/main.zig`:
+```zig
+// import our terminal module.
+const term = @import("terminal/terminal.zig").terminal;
+
+
+export fn _start() callconv(.Naked) noreturn {
+    // initialize the terminal
+    term.initialize();
+    // write data into the buffer.
+    term.write("Hello, World!");
+    while (true) {}
+}
+```
+
+#### Printing:
+DISCLAIMER: If you get stuck in terminal, try to Press `CTRL+Alt+2` and then type `quit` and enter.
+
+1. > $ zig build
+2. > $ qemu-system-x86_64 -kernel zig-out/bin/zig-os
+```shell
+VNC server running on ::1:5900
+```
+3. Now in another terminal run:
+    - > $ vinagre localhost:5900
+
+This should pop open a window with `Hello, World!` Written on it
+
+### Next Steps
+Well, we're far away from having a working kernel, we don't even have a working shell, so maybe that's something that we could in the next chapter.
+
+[Chapter 3 - TODO]()
 
 ## References
 - [PVH](https://xenbits.xen.org/docs/4.6-testing/misc/pvh.html)
