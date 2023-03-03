@@ -1,37 +1,3 @@
-const std = @import("std");
-const builtin = @import("builtin");
-
-const MultiBoot = extern struct {
-    magic: i32,
-    flags: i32,
-    checksum: i32,
-};
-
-const ALIGN = 1 << 0;
-const MEMINFO = 1 << 1;
-const MAGIC = 0x1BADB002;
-const FLAGS = ALIGN | MEMINFO;
-
-export var multiboot align(4) linksection(".multiboot") = MultiBoot{
-    .magic = MAGIC,
-    .flags = FLAGS,
-    .checksum = -(MAGIC + FLAGS),
-};
-
-export var stack_bytes: [16 * 1024]u8 align(16) linksection(".bss") = undefined;
-const stack_bytes_slice = stack_bytes[0..];
-
-export fn _start() callconv(.Naked) noreturn {
-    @call(std.builtin.CallModifier.auto, kmain, .{});
-
-    while (true) {}
-}
-
-fn kmain() void {
-    terminal.initialize();
-    terminal.write("Hello, Kernel World from Zig 0.11.0-dev!");
-}
-
 // Hardware text mode color constants
 const VgaColor = u8;
 const VGA_COLOR_BLACK = 0;
@@ -51,20 +17,23 @@ const VGA_COLOR_LIGHT_MAGENTA = 13;
 const VGA_COLOR_LIGHT_BROWN = 14;
 const VGA_COLOR_WHITE = 15;
 
+// foreground | background color.
 fn vgaEntryColor(fg: VgaColor, bg: VgaColor) u8 {
+    // will build the byte representing the color.
     return fg | (bg << 4);
 }
 
 fn vgaEntry(uc: u8, color: u8) u16 {
     var c: u16 = color;
 
+    // build the 2 bytes representing the printable caracter w/ EntryColor.
     return uc | (c << 8);
 }
 
 const VGA_WIDTH = 80;
-const VGA_HEIGHT = 25;
+const VGA_HEIGHT = 45;
 
-const terminal = struct {
+pub const terminal = struct {
     var row: usize = 0;
     var column: usize = 0;
 
@@ -72,7 +41,7 @@ const terminal = struct {
 
     const buffer = @intToPtr([*]volatile u16, 0xB8000);
 
-    fn initialize() void {
+    pub fn initialize() void {
         var y: usize = 0;
         while (y < VGA_HEIGHT) : (y += 1) {
             var x: usize = 0;
@@ -102,12 +71,8 @@ const terminal = struct {
         }
     }
 
-    fn write(data: []const u8) void {
+    pub fn write(data: []const u8) void {
         for (data) |c|
             putChar(c);
     }
 };
-
-pub fn panic(_: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
-    while (true) {}
-}

@@ -1,8 +1,6 @@
 const std = @import("std");
-const Builder = std.build.Builder;
 const Target = std.Target;
 const CrossTarget = std.zig.CrossTarget;
-const Feature = std.Target.Cpu.Feature;
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
@@ -26,6 +24,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
     exe.setLinkerScriptPath(.{ .path = "src/linker.ld" });
 
     // This declares intent for the executable to be installed into the
