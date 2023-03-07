@@ -26,6 +26,18 @@ pub const Modifiers = struct {
     pub fn isCtrlPressed(self: *const Modifiers) bool {
         return self.rightCtrl or self.leftCtrl;
     }
+
+    pub fn update(self: *const Modifiers, event: *const Event) void {
+        switch (event.unshiftedKey) {
+            Key.Key_LeftShift => self.leftShift = event.state == State.Pressed,
+            Key.Key_RightShift => self.rightShift = event.state == State.Pressed,
+            Key.Key_LeftAlt => self.leftAlt = event.state == State.Pressed,
+            Key.Key_RightAlt => self.rightAlt = event.state == State.Pressed,
+            Key.Key_LeftCtrl => self.leftCtrl = event.state == State.Pressed,
+            Key.Key_RightCtrl => self.rightCtrl = event.state == State.Pressed,
+            else => {},
+        }
+    }
 };
 
 pub const Event = struct {
