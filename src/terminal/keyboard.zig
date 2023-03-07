@@ -1,3 +1,5 @@
+const Key = @import("keys.zig").Key;
+
 /// State represents the current key's state.
 pub const State = enum {
     Pressed,
@@ -23,5 +25,23 @@ pub const Modifiers = struct {
 
     pub fn isCtrlPressed(self: *const Modifiers) bool {
         return self.rightCtrl or self.leftCtrl;
+    }
+};
+
+pub const Event = struct {
+    unshiftedKey: Key,
+    state: State,
+    modifiers: Modifiers,
+    key: Key,
+    char: ?u8,
+
+    pub fn init(unshiftedKey: Key, shiftedKey: ?Key, state: State, modifiers: *const Modifiers) Event {
+        return Event{
+            .unshiftedKey = unshiftedKey,
+            .state = state,
+            .modifiers = modifiers.*,
+            .key = if (shiftedKey != null and modifiers.isShiftPressed()) shiftedKey.? else unshiftedKey,
+            .char = null,
+        };
     }
 };
