@@ -1,6 +1,8 @@
+/* name of entry label */
 ENTRY(_start)
  
 SECTIONS {
+  /* loading program with 1 MB */
 	. = 1M;
  
 	.text : ALIGN(4K) {
