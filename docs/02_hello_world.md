@@ -239,6 +239,8 @@ We need to define a `MultiBoot` struct following the pattern from [Header Magic 
     - _"specifies features that the OS image requests or requires of an boot loader."_
 - `checksum: i32`
     - _"is a 32-bit unsigned value which, when added to the other magic fields (i.e. `magic` and `flags`), must have a 32-bit unsigned sum of zero."_
+    - `magic` + `checksum` + `flags` = 0
+
 [Multiboot Manual](https://www.gnu.org/software/grub/manual/multiboot/multiboot.html)
 
 #### Struct
