@@ -23,5 +23,9 @@ export var multiboot align(4) linksection(".multiboot") = MultiBoot{
 export fn _start() callconv(.Naked) noreturn {
     term.initialize();
     term.write("Hello, World!");
+    hang();
+}
+
+fn hang() noreturn {
     while (true) {}
 }
