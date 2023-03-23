@@ -40,12 +40,29 @@ pub const terminal = struct {
     var color = vgaEntryColor(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
 
     const buffer = @intToPtr([*]volatile u16, 0xB8000);
+    // the following variable `map`, is a matrix representation of
+    // our buffer. It'd be a cartesian plane like this:
+    // . . . . . - . . . . . .
+    // . . . . . - . . . . . .
+    // . . . . . - . . . . . .
+    // . . . . . - . . . . . .
+    // - - - - - . + + + + + +x
+    // . . . . . + . . . . . .
+    // . . . . . + . . . . . .
+    // . . . . . + . . . . . .
+    // . . . . . + . A . . . .
+    // . . . . . y . . . . . .
+    //
+    // Using as example, the position A would be:
+    // A = (2,4) = buffer[4 * 80 + 2] = buffer[322]
+    var map: [VGA_WIDTH][VGA_HEIGHT]*volatile u16 = undefined;
 
     pub fn initialize() void {
         var y: usize = 0;
         while (y < VGA_HEIGHT) : (y += 1) {
             var x: usize = 0;
             while (x < VGA_WIDTH) : (x += 1) {
+                map[x][y] = &buffer[(y * VGA_WIDTH) + x];
                 putCharAt(' ', color, x, y);
             }
         }
@@ -56,8 +73,7 @@ pub const terminal = struct {
     }
 
     fn putCharAt(c: u8, new_color: u8, x: usize, y: usize) void {
-        const index = y * VGA_WIDTH + x;
-        buffer[index] = vgaEntry(c, new_color);
+        map[x][y].* = vgaEntry(c, new_color);
     }
 
     fn putChar(c: u8) void {
