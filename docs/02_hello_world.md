@@ -119,10 +119,16 @@ const CrossTarget = std.zig.CrossTarget;
 Then, let's declare our target as:
 ```zig
 pub fn build(b: *std.Build) void {
-    const target = CrossTarget{
+    // Currently the target is hardcoded to be
+    // on x86, but with time this will be compiled for
+    // various architectures.
+    const targetQuery = CrossTarget{
         .cpu_arch = Target.Cpu.Arch.x86,
         .os_tag = Target.Os.Tag.freestanding,
     };
+
+    const target = b.resolveTargetQuery(targetQuery);
+
     // ...
 }
 ```
@@ -148,25 +154,28 @@ Let's add a `src/linker.ld` file:
 ENTRY(_start)
  
 SECTIONS {
-	. = 1M;
- 
-	.text : ALIGN(4K) {
-		KEEP(*(.multiboot))
-		*(.text)
-	}
- 
-	.rodata : ALIGN(4K) {
-		*(.rodata)
-	}
- 
-	.data : ALIGN(4K) {
-		*(.data)
-	}
- 
-	.bss : ALIGN(4K) {
-		*(COMMON)
-		*(.bss)
-	}
+  . = 1M;
+
+  .multiboot : ALIGN(4K) {
+    KEEP(*(.multiboot))
+  }
+
+  .text : ALIGN(4K) {
+    *(.text)
+  }
+
+  .rodata : ALIGN(4K) {
+    *(.rodata)
+  }
+
+  .data : ALIGN(4K) {
+    *(.data)
+  }
+
+  .bss : ALIGN(4K) {
+    *(COMMON)
+    *(.bss)
+  }
 }
 ```
 Well, that's a lot of things that I've never seen before, let's try to understand what is happening.
@@ -203,19 +212,19 @@ TODO: FINISH THIS SECTION
 
 ### Using LD File
 To use our `src/linker.ld` file we should modify our `build.zig`, loading the `src/linker.ld` using:
-- `exe.setLinkerScriptPath(.{ .path = "src/linker.ld" });`
+- `exe.setLinkerScriptPath(b.path("src/linker.ld"));`
 
 ```zig
 const exe = b.addExecutable(.{
     .name = "zig-os",
     // In this case the main source file is merely a path, however, in more
     // complicated build scripts, this could be a generated file.
-    .root_source_file = .{ .path = "src/main.zig" },
+    .root_source_file = b.path("src/main.zig"),
     .target = target,
     .optimize = optimize,
 });
 
-exe.setLinkerScriptPath(.{ .path = "src/linker.ld" });
+exe.setLinkerScriptPath(b.path("src/linker.ld"));
 ```
 
 ### Building with Linker
@@ -484,18 +493,13 @@ DISCLAIMER: If you get stuck in terminal, try to Press `CTRL+Alt+2` and then typ
 
 1. > $ zig build
 2. > $ qemu-system-x86_64 -kernel zig-out/bin/zig-os
-```shell
-VNC server running on ::1:5900
-```
-3. Now in another terminal run:
-    - > $ vinagre localhost:5900
 
 This should pop open a window with `Hello, World!` Written on it
 
 ### Next Steps
 Well, we're far away from having a working kernel, we don't even have a working shell, so maybe that's something that we could in the next chapter.
 
-[Chapter 3 - TODO]()
+[Chapter 3 - Keyboard Input](./03_keyboard_input.md)
 
 ## References
 - [PVH](https://xenbits.xen.org/docs/4.6-testing/misc/pvh.html)
