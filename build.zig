@@ -6,10 +6,12 @@ const CrossTarget = std.zig.CrossTarget;
 // declaratively construct a build graph that will be executed by an external
 // runner.
 pub fn build(b: *std.Build) void {
-    const target = CrossTarget{
+    const targetQuery = CrossTarget{
         .cpu_arch = Target.Cpu.Arch.x86,
         .os_tag = Target.Os.Tag.freestanding,
     };
+
+    const target = b.resolveTargetQuery(targetQuery);
 
     // Standard optimization options allow the person running `zig build` to select
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
@@ -20,22 +22,22 @@ pub fn build(b: *std.Build) void {
         .name = "zig-os",
         // In this case the main source file is merely a path, however, in more
         // complicated build scripts, this could be a generated file.
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    exe.setLinkerScriptPath(.{ .path = "src/linker.ld" });
+    exe.setLinkerScriptPath(b.path("src/linker.ld"));
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
     // step when running `zig build`).
-    exe.install();
+    b.installArtifact(exe);
 
     // This *creates* a RunStep in the build graph, to be executed when another
     // step is evaluated that depends on it. The next line below will establish
     // such a dependency.
-    const run_cmd = exe.run();
+    const run_cmd = b.addRunArtifact(exe);
 
     // By making the run step depend on the install step, it will be run from the
     // installation directory rather than directly from within the cache directory.
@@ -57,7 +59,7 @@ pub fn build(b: *std.Build) void {
 
     // Creates a step for unit testing.
     const exe_tests = b.addTest(.{
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });

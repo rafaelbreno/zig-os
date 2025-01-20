@@ -24,7 +24,7 @@ fn vgaEntryColor(fg: VgaColor, bg: VgaColor) u8 {
 }
 
 fn vgaEntry(uc: u8, color: u8) u16 {
-    var c: u16 = color;
+    const c: u16 = color;
 
     // build the 2 bytes representing the printable caracter w/ EntryColor.
     return uc | (c << 8);
@@ -39,7 +39,7 @@ pub const terminal = struct {
 
     var color = vgaEntryColor(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
 
-    const buffer = @intToPtr([*]volatile u16, 0xB8000);
+    const buffer: [*]volatile u16 = @ptrFromInt(0xB8000);
 
     pub fn initialize() void {
         var y: usize = 0;
