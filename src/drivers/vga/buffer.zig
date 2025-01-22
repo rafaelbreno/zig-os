@@ -1,5 +1,3 @@
-// src/drivers/vga/buffer.zig
-
 pub const VGABuffer = struct {
     const Self = @This();
 
@@ -19,6 +17,16 @@ pub const VGABuffer = struct {
 
     pub fn getInstance() *Self {
         return &instance;
+    }
+
+    pub fn flush(self: *Self, color: u8) void {
+        var y: usize = 0;
+        while (y < HEIGHT) : (y += 1) {
+            var x: usize = 0;
+            while (x < WIDTH) : (x += 1) {
+                self.writeAt(' ', color, x, y);
+            }
+        }
     }
 
     pub fn writeAt(self: *Self, char: u8, color: u8, x: usize, y: usize) void {
