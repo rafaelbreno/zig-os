@@ -2,6 +2,41 @@ const std = @import("std");
 const Target = std.Target;
 const CrossTarget = std.zig.CrossTarget;
 
+fn addTests(
+    b: *std.Build,
+    test_step: *std.Build.Step,
+    dir_path: []const u8,
+) !void {
+    // Get absolute path
+    const abs_path = try std.fs.cwd().realpathAlloc(b.allocator, dir_path);
+    defer b.allocator.free(abs_path);
+
+    var dir = try std.fs.openDirAbsolute(abs_path, .{ .iterate = true });
+    defer dir.close();
+
+    var walker = try dir.walk(b.allocator);
+    defer walker.deinit();
+
+    // Iterate through all files in directory and subdirectories
+    while (try walker.next()) |entry| {
+        if (entry.kind != .file) continue;
+
+        // Check if file ends with _test.zig
+        if (std.mem.endsWith(u8, entry.path, "_test.zig")) {
+            const test_path = try std.fs.path.join(b.allocator, &.{ dir_path, entry.path });
+            defer b.allocator.free(test_path);
+
+            const tests = b.addTest(.{
+                .root_source_file = b.path(test_path),
+                .target = b.host,
+                .optimize = .Debug,
+            });
+            const run_tests = b.addRunArtifact(tests);
+            test_step.dependOn(&run_tests.step);
+        }
+    }
+}
+
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
@@ -60,7 +95,14 @@ pub fn build(b: *std.Build) void {
     // This *creates* a RunStep in the build graph, to be executed when another
     // step is evaluated that depends on it. The next line below will establish
     // such a dependency.
-    const run_cmd = b.addRunArtifact(kernel);
+    //const run_cmd = b.addRunArtifact(kernel);
+    const run_cmd = b.addSystemCommand(&.{
+        "qemu-system-x86_64",
+        "-kernel",
+        "zig-out/bin/zig-os",
+        "-serial",
+        "null",
+    });
 
     // By making the run step depend on the install step, it will be run from the
     // installation directory rather than directly from within the cache directory.
@@ -77,19 +119,13 @@ pub fn build(b: *std.Build) void {
     // This creates a build step. It will be visible in the `zig build --help` menu,
     // and can be selected like this: `zig build run`
     // This will evaluate the `run` step rather than the default, which is "install".
-    const run_step = b.step("run", "Run the app");
+    const run_step = b.step("run", "Run the OS in QEMU");
     run_step.dependOn(&run_cmd.step);
 
-    // Creates a step for unit testing.
-    const exe_tests = b.addTest(.{
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const test_step = b.step("test", "Run all tests");
 
-    // Similar to creating the run step earlier, this exposes a `test` step to
-    // the `zig build --help` menu, providing a way for the user to request
-    // running the unit tests.
-    const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&exe_tests.step);
+    addTests(b, test_step, "src/") catch |err| {
+        std.debug.print("Error adding tests: {}\n", .{err});
+        return;
+    };
 }
