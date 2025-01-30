@@ -36,6 +36,19 @@ pub const Cursor = struct {
         }
     }
 
+    pub fn backOne(self: *Self) void {
+        if (self.column > 0) {
+            self.column = self.column - 1;
+            return;
+        }
+        if (self.row == 0) {
+            return;
+        }
+
+        self.row = self.row - 1;
+        self.column = self.max_width - 1;
+    }
+
     pub fn newLine(self: *Self) void {
         self.column = 0;
         self.row += 1;

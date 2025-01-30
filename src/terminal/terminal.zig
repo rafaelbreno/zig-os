@@ -21,6 +21,10 @@ pub const terminal = struct {
     }
 
     fn putChar(c: u8, new_color: u8) void {
+        if (c == '\n') {
+            cursor.newLine();
+            return;
+        }
         buffer.writeAt(c, new_color, cursor.column, cursor.row);
         cursor.advance();
     }
@@ -34,19 +38,13 @@ pub const terminal = struct {
         const scancode = Keyboard.readScancode();
         if (Keyboard.handleScancode(scancode)) |char| {
             switch (char) {
-                0x08 => { // enter
+                0x08 => { // backspace
                     if (buffer_pos > 0) {
-                        buffer_pos -= 1;
-                        if (cursor.column > 0) {
-                            cursor.column -= 1;
-                        } else if (cursor.row > 0) {
-                            cursor.row -= 1;
-                            cursor.column = VGABuffer.WIDTH - 1;
-                        }
+                        cursor.backOne();
                         buffer.writeAt(' ', color, cursor.column, cursor.row);
                     }
                 },
-                0x0A => { // backspace
+                0x0A => { // enter
                     processCommand();
                     cursor.newLine();
                     buffer_pos = 0;
@@ -68,7 +66,8 @@ pub const terminal = struct {
         write(input_buffer[0..buffer_pos]);
         write("\n");
 
-        // Clear input buffer
-        @memset(input_buffer[0..], 0);
+        for (&input_buffer) |*byte| {
+            byte.* = 0;
+        }
     }
 };
