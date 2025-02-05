@@ -7,7 +7,7 @@ const Keyboard = @import("../drivers/keyboard/keyboard.zig").Keyboard;
 
 pub const terminal = struct {
     var color = vga.vgaEntryColor(Color.LightGrey, Color.Black);
-    var cursor = Cursor.init(VGABuffer.HEIGHT, VGABuffer.WIDTH);
+    var cursor = Cursor.init(VGABuffer.WIDTH, VGABuffer.HEIGHT);
     const buffer: *VGABuffer = VGABuffer.getInstance();
 
     // Input buffer configuration
@@ -23,10 +23,16 @@ pub const terminal = struct {
     fn putChar(c: u8, new_color: u8) void {
         if (c == '\n') {
             cursor.newLine();
+            if (cursor.checkScroll()) {
+                buffer.scroll(color);
+            }
             return;
         }
         buffer.writeAt(c, new_color, cursor.column, cursor.row);
         cursor.advance();
+        if (cursor.checkScroll()) {
+            buffer.scroll(color);
+        }
     }
 
     pub fn write(data: []const u8) void {
@@ -39,22 +45,26 @@ pub const terminal = struct {
         if (Keyboard.handleScancode(scancode)) |char| {
             switch (char) {
                 0x08 => { // backspace
-                    if (buffer_pos > 0) {
-                        cursor.backOne();
-                        buffer.writeAt(' ', color, cursor.column, cursor.row);
-                    }
+                    //if (buffer_pos > 0) {
+                    //buffer_pos -= 1;
+                    cursor.backOne();
+                    buffer.writeAt(' ', color, cursor.column, cursor.row);
+                    //}
                 },
                 0x0A => { // enter
-                    processCommand();
+                    //processCommand();
                     cursor.newLine();
-                    buffer_pos = 0;
+                    if (cursor.checkScroll()) {
+                        buffer.scroll(color);
+                    }
+                    //buffer_pos = 0;
                 },
                 else => {
-                    if (buffer_pos < INPUT_BUFFER_SIZE - 1) {
-                        input_buffer[buffer_pos] = char;
-                        buffer_pos += 1;
-                        putChar(char, color);
-                    }
+                    //if (buffer_pos < INPUT_BUFFER_SIZE - 1) {
+                    //input_buffer[buffer_pos] = char;
+                    //buffer_pos += 1;
+                    putChar(char, color);
+                    //}
                 },
             }
         }

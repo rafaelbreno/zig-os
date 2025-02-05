@@ -3,6 +3,7 @@ pub const Cursor = struct {
     column: usize,
     max_width: usize,
     max_height: usize,
+    needs_scroll: bool,
 
     const Self = @This();
 
@@ -12,6 +13,7 @@ pub const Cursor = struct {
             .column = 0,
             .max_width = width,
             .max_height = height,
+            .needs_scroll = false,
         };
     }
 
@@ -23,6 +25,7 @@ pub const Cursor = struct {
         if (r >= self.max_height or col >= self.max_width) return;
         self.row = r;
         self.column = col;
+        self.needs_scroll = false;
     }
 
     pub fn advance(self: *Self) void {
@@ -31,7 +34,8 @@ pub const Cursor = struct {
             self.column = 0;
             self.row += 1;
             if (self.row >= self.max_height) {
-                self.row = 0;
+                self.row = self.max_height - 1;
+                self.needs_scroll = true;
             }
         }
     }
@@ -47,18 +51,27 @@ pub const Cursor = struct {
 
         self.row = self.row - 1;
         self.column = self.max_width - 1;
+        self.needs_scroll = false;
     }
 
     pub fn newLine(self: *Self) void {
         self.column = 0;
         self.row += 1;
         if (self.row >= self.max_height) {
-            self.row = 0;
+            self.row -= 1;
+            self.needs_scroll = true;
         }
     }
 
     pub fn reset(self: *Self) void {
         self.column = 0;
         self.row = 0;
+        self.needs_scroll = false;
+    }
+
+    pub fn checkScroll(self: *Self) bool {
+        const needs = self.needs_scroll;
+        self.needs_scroll = false;
+        return needs;
     }
 };
