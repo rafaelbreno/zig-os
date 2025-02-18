@@ -2,105 +2,143 @@ const std = @import("std");
 const testing = std.testing;
 const Cursor = @import("cursor.zig").Cursor;
 
-test "cursor initialization" {
+test "Cursor - initialization" {
     const cursor = Cursor.init(80, 25);
+
     try testing.expectEqual(@as(usize, 0), cursor.row);
     try testing.expectEqual(@as(usize, 0), cursor.column);
-    try testing.expectEqual(@as(usize, 80), cursor.max_width);
     try testing.expectEqual(@as(usize, 25), cursor.max_height);
+    try testing.expectEqual(@as(usize, 80), cursor.max_width);
+    try testing.expectEqual(false, cursor.needs_scroll);
 }
 
-test "cursor movement" {
+test "Cursor - getPosition" {
     var cursor = Cursor.init(80, 25);
+    cursor.row = 5;
+    cursor.column = 10;
 
-    // Test moveTo within bounds
-    cursor.moveTo(5, 10);
-    try testing.expectEqual(@as(usize, 5), cursor.row);
-    try testing.expectEqual(@as(usize, 10), cursor.column);
-
-    // Test moveTo out of bounds (should not change position)
-    cursor.moveTo(100, 10);
-    try testing.expectEqual(@as(usize, 5), cursor.row);
-    try testing.expectEqual(@as(usize, 10), cursor.column);
-}
-
-test "cursor advance" {
-    var cursor = Cursor.init(5, 5);
-
-    // Test normal advance
-    cursor.advance();
-    try testing.expectEqual(@as(usize, 0), cursor.row);
-    try testing.expectEqual(@as(usize, 1), cursor.column);
-
-    // Test line wrap
-    cursor.moveTo(0, 4);
-    cursor.advance();
-    try testing.expectEqual(@as(usize, 1), cursor.row);
-    try testing.expectEqual(@as(usize, 0), cursor.column);
-
-    // Test screen wrap
-    cursor.moveTo(4, 4);
-    cursor.advance();
-    try testing.expectEqual(@as(usize, 0), cursor.row);
-    try testing.expectEqual(@as(usize, 0), cursor.column);
-}
-
-test "cursor backOne" {
-    var cursor = Cursor.init(5, 5);
-
-    // Test normal back movement
-    cursor.moveTo(0, 2);
-    cursor.backOne();
-    try testing.expectEqual(@as(usize, 0), cursor.row);
-    try testing.expectEqual(@as(usize, 1), cursor.column);
-
-    // Test line wrap backwards
-    cursor.moveTo(1, 0);
-    cursor.backOne();
-    try testing.expectEqual(@as(usize, 0), cursor.row);
-    try testing.expectEqual(@as(usize, 4), cursor.column);
-
-    // Test at beginning (should not move)
-    cursor.moveTo(0, 0);
-    cursor.backOne();
-    try testing.expectEqual(@as(usize, 0), cursor.row);
-    try testing.expectEqual(@as(usize, 0), cursor.column);
-
-    // Test at beginning (should not move)
-    cursor.moveTo(1, 0);
-    cursor.backOne();
-    try testing.expectEqual(@as(usize, 0), cursor.row);
-    try testing.expectEqual(@as(usize, cursor.max_width - 1), cursor.column);
-}
-
-test "cursor newLine" {
-    var cursor = Cursor.init(5, 5);
-
-    // Test normal newline
-    cursor.moveTo(0, 3);
-    cursor.newLine();
-    try testing.expectEqual(@as(usize, 1), cursor.row);
-    try testing.expectEqual(@as(usize, 0), cursor.column);
-
-    // Test newline wrap
-    cursor.moveTo(4, 3);
-    cursor.newLine();
-    try testing.expectEqual(@as(usize, 0), cursor.row);
-    try testing.expectEqual(@as(usize, 0), cursor.column);
-}
-
-test "cursor reset" {
-    var cursor = Cursor.init(80, 25);
-    cursor.moveTo(10, 15);
-    cursor.reset();
-    try testing.expectEqual(@as(usize, 0), cursor.row);
-    try testing.expectEqual(@as(usize, 0), cursor.column);
-}
-
-test "cursor getPosition" {
-    var cursor = Cursor.init(80, 25);
-    cursor.moveTo(5, 10);
     const pos = cursor.getPosition();
     try testing.expectEqual(@as(usize, 5), pos[0]);
     try testing.expectEqual(@as(usize, 10), pos[1]);
+}
+
+test "Cursor - moveTo valid position" {
+    var cursor = Cursor.init(80, 25);
+    cursor.moveTo(5, 10);
+
+    try testing.expectEqual(@as(usize, 5), cursor.row);
+    try testing.expectEqual(@as(usize, 10), cursor.column);
+    try testing.expectEqual(false, cursor.needs_scroll);
+}
+
+test "Cursor - moveTo invalid position" {
+    var cursor = Cursor.init(80, 25);
+    const initial_row = cursor.row;
+    const initial_col = cursor.column;
+
+    // Try to move beyond bounds
+    cursor.moveTo(100, 90);
+
+    // Should remain at initial position
+    try testing.expectEqual(initial_row, cursor.row);
+    try testing.expectEqual(initial_col, cursor.column);
+}
+
+test "Cursor - advance within bounds" {
+    var cursor = Cursor.init(80, 25);
+    cursor.moveTo(0, 78);
+    cursor.advance();
+
+    try testing.expectEqual(@as(usize, 0), cursor.row);
+    try testing.expectEqual(@as(usize, 79), cursor.column);
+    try testing.expectEqual(false, cursor.needs_scroll);
+}
+
+test "Cursor - advance with line wrap" {
+    var cursor = Cursor.init(80, 25);
+    cursor.moveTo(0, 79);
+    cursor.advance();
+
+    try testing.expectEqual(@as(usize, 1), cursor.row);
+    try testing.expectEqual(@as(usize, 0), cursor.column);
+    try testing.expectEqual(false, cursor.needs_scroll);
+}
+
+test "Cursor - advance with scroll needed" {
+    var cursor = Cursor.init(80, 25);
+    cursor.moveTo(24, 79);
+    cursor.advance();
+
+    try testing.expectEqual(@as(usize, 24), cursor.row);
+    try testing.expectEqual(@as(usize, 0), cursor.column);
+    try testing.expectEqual(true, cursor.needs_scroll);
+}
+
+test "Cursor - backOne within line" {
+    var cursor = Cursor.init(80, 25);
+    cursor.moveTo(5, 10);
+    cursor.backOne();
+
+    try testing.expectEqual(@as(usize, 5), cursor.row);
+    try testing.expectEqual(@as(usize, 9), cursor.column);
+    try testing.expectEqual(false, cursor.needs_scroll);
+}
+
+test "Cursor - backOne with line wrap" {
+    var cursor = Cursor.init(80, 25);
+    cursor.moveTo(5, 0);
+    cursor.backOne();
+
+    try testing.expectEqual(@as(usize, 4), cursor.row);
+    try testing.expectEqual(@as(usize, 79), cursor.column);
+    try testing.expectEqual(false, cursor.needs_scroll);
+}
+
+test "Cursor - backOne at start" {
+    var cursor = Cursor.init(80, 25);
+    cursor.backOne();
+
+    try testing.expectEqual(@as(usize, 0), cursor.row);
+    try testing.expectEqual(@as(usize, 0), cursor.column);
+    try testing.expectEqual(false, cursor.needs_scroll);
+}
+
+test "Cursor - newLine within bounds" {
+    var cursor = Cursor.init(80, 25);
+    cursor.moveTo(5, 10);
+    cursor.newLine();
+
+    try testing.expectEqual(@as(usize, 6), cursor.row);
+    try testing.expectEqual(@as(usize, 0), cursor.column);
+    try testing.expectEqual(false, cursor.needs_scroll);
+}
+
+test "Cursor - newLine with scroll needed" {
+    var cursor = Cursor.init(80, 25);
+    cursor.moveTo(24, 10);
+    cursor.newLine();
+
+    try testing.expectEqual(@as(usize, 24), cursor.row);
+    try testing.expectEqual(@as(usize, 0), cursor.column);
+    try testing.expectEqual(true, cursor.needs_scroll);
+}
+
+test "Cursor - reset" {
+    var cursor = Cursor.init(80, 25);
+    cursor.moveTo(5, 10);
+    cursor.needs_scroll = true;
+    cursor.reset();
+
+    try testing.expectEqual(@as(usize, 0), cursor.row);
+    try testing.expectEqual(@as(usize, 0), cursor.column);
+    try testing.expectEqual(false, cursor.needs_scroll);
+}
+
+test "Cursor - checkScroll" {
+    var cursor = Cursor.init(80, 25);
+    cursor.needs_scroll = true;
+
+    try testing.expectEqual(true, cursor.checkScroll());
+    try testing.expectEqual(false, cursor.needs_scroll);
+    try testing.expectEqual(false, cursor.checkScroll());
 }

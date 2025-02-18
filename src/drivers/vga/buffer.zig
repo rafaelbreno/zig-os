@@ -39,7 +39,7 @@ pub const VGABuffer = struct {
         while (y < HEIGHT) : (y += 1) {
             var x: usize = 0;
 
-            while (x < HEIGHT) : (x += 1) {
+            while (x < WIDTH) : (x += 1) {
                 const from_index = y * WIDTH + x;
                 const to_index = (y - 1) * WIDTH + x;
                 self.buffer[to_index] = self.buffer[from_index];

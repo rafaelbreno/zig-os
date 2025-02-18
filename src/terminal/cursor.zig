@@ -10,9 +10,11 @@ pub const Cursor = struct {
     pub fn init(width: usize, height: usize) Self {
         return Self{
             .row = 0,
+            .max_height = height,
+
             .column = 0,
             .max_width = width,
-            .max_height = height,
+
             .needs_scroll = false,
         };
     }

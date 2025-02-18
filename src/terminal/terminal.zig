@@ -45,39 +45,19 @@ pub const terminal = struct {
         if (Keyboard.handleScancode(scancode)) |char| {
             switch (char) {
                 0x08 => { // backspace
-                    //if (buffer_pos > 0) {
-                    //buffer_pos -= 1;
                     cursor.backOne();
                     buffer.writeAt(' ', color, cursor.column, cursor.row);
-                    //}
                 },
                 0x0A => { // enter
-                    //processCommand();
                     cursor.newLine();
                     if (cursor.checkScroll()) {
                         buffer.scroll(color);
                     }
-                    //buffer_pos = 0;
                 },
                 else => {
-                    //if (buffer_pos < INPUT_BUFFER_SIZE - 1) {
-                    //input_buffer[buffer_pos] = char;
-                    //buffer_pos += 1;
                     putChar(char, color);
-                    //}
                 },
             }
-        }
-    }
-
-    fn processCommand() void {
-        // For now, just echo the command
-        write("\nYou typed: ");
-        write(input_buffer[0..buffer_pos]);
-        write("\n");
-
-        for (&input_buffer) |*byte| {
-            byte.* = 0;
         }
     }
 };
