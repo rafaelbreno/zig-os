@@ -8,6 +8,7 @@ pub const Keyboard = struct {
 
     // Special keycodes
     const BACKSPACE: u8 = 0x0E;
+    const TAB: u8 = 0x0F;
     const ENTER: u8 = 0x1C;
     const LEFT_SHIFT: u8 = 0x2A;
     const RIGHT_SHIFT: u8 = 0x36;
@@ -53,6 +54,7 @@ pub const Keyboard = struct {
             },
             BACKSPACE => return 0x08, // ASCII backspace
             ENTER => return 0x0A, // ASCII newline
+            TAB => return 0x09,
             else => {
                 if (code >= ascii_table.len) return null;
 

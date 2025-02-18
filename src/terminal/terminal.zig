@@ -10,10 +10,7 @@ pub const terminal = struct {
     var cursor = Cursor.init(VGABuffer.WIDTH, VGABuffer.HEIGHT);
     const buffer: *VGABuffer = VGABuffer.getInstance();
 
-    // Input buffer configuration
-    const INPUT_BUFFER_SIZE = 256;
-    var input_buffer: [INPUT_BUFFER_SIZE]u8 = undefined;
-    var buffer_pos: usize = 0;
+    const TAB_SIZE = 4;
 
     pub fn initialize() void {
         buffer.flush(color);
@@ -21,17 +18,30 @@ pub const terminal = struct {
     }
 
     fn putChar(c: u8, new_color: u8) void {
-        if (c == '\n') {
-            cursor.newLine();
-            if (cursor.checkScroll()) {
-                buffer.scroll(color);
-            }
-            return;
-        }
-        buffer.writeAt(c, new_color, cursor.column, cursor.row);
-        cursor.advance();
-        if (cursor.checkScroll()) {
-            buffer.scroll(color);
+        switch (c) {
+            '\n' => {
+                cursor.newLine();
+                if (cursor.checkScroll()) {
+                    buffer.scroll(color);
+                }
+            },
+            '\t' => {
+                const spaces = TAB_SIZE - (cursor.column % TAB_SIZE);
+                var i: usize = 0;
+                while (i < spaces) : (i += 1) {
+                    buffer.writeAt(' ', new_color, cursor.column, cursor.row);
+                    cursor.advance();
+                }
+            },
+            '\r' => cursor.column = 0,
+            0x08 => {
+                cursor.backOne();
+                buffer.writeAt(' ', color, cursor.column, cursor.row);
+            },
+            else => {
+                buffer.writeAt(c, new_color, cursor.column, cursor.row);
+                cursor.advance();
+            },
         }
     }
 
@@ -47,6 +57,13 @@ pub const terminal = struct {
                 0x08 => { // backspace
                     cursor.backOne();
                     buffer.writeAt(' ', color, cursor.column, cursor.row);
+                },
+                0x09 => { // tab
+                    const spaces = TAB_SIZE - (cursor.column % TAB_SIZE);
+                    var i: usize = 0;
+                    while (i < spaces) : (i += 1) {
+                        putChar(' ', color);
+                    }
                 },
                 0x0A => { // enter
                     cursor.newLine();
