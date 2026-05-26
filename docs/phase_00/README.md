@@ -4,33 +4,37 @@
 
 ## 0.1 Install the toolchain
 
-- [ ] **Install Zig 0.16.0**
+- [x] **Install Zig 0.16.0**
   - **Why:** Zig is your only compiler. Version matters — `build.zig` APIs shift between minor versions.
   - **Study:** Zig release notes for 0.16.0 (focus on `build.zig` API changes).
   - **What:** Download Zig 0.16.0, add to `PATH`, run `zig version`.
   - **Verify:** `zig version` prints `0.16.0`.
   - **Notes:**
+    - Currently I installed on MacOS using `brew`
 
-- [ ] **Install QEMU**
+- [x] **Install QEMU**
   - **Why:** You will *never* test on real hardware first. QEMU emulates a full x86_64 machine, lets you pause it, inspect registers, and reboot in milliseconds.
   - **Study:** Difference between emulation (QEMU) and virtualization (KVM). Why QEMU is preferred for early OS dev.
   - **What:** Install `qemu-system-x86_64`. On Arch: `sudo pacman -S qemu-full`.
   - **Verify:** `qemu-system-x86_64 --version` prints a version.
   - **Notes:**
+    - Currently I installed on MacOS using `brew`
 
-- [ ] **Install GDB with multi-arch support**
+- [x] **Install GDB with multi-arch support**
   - **Why:** GDB attached to QEMU is your X-ray machine. You'll use it from Phase 1 onward.
   - **Study:** What "remote debugging" means. The role of `gdbserver`.
   - **What:** Install `gdb` (Arch package: `gdb`). Confirm it lists `i386:x86-64` as a target.
   - **Verify:** `gdb -ex "set architecture i386:x86-64" -ex "quit"` exits cleanly.
   - **Notes:**
+    - Installed on MacOS using `brew`
 
-- [ ] **Install ISO/disk image tools**
+- [x] **Install ISO/disk image tools**
   - **Why:** Bootable media is how Limine and QEMU hand off to your kernel.
   - **Study:** What an ISO 9660 image is. The role of `xorriso`.
   - **What:** Install `xorriso` and `mtools` (Limine needs both).
   - **Verify:** `xorriso --version` prints a version.
   - **Notes:**
+    - Installed on MacOS using `brew`
 
 ## 0.2 Understand the build target
 
@@ -87,3 +91,22 @@ You can run `zig build` and reliably produce an ELF kernel binary. You can read 
 - [ ] Open a notebook or `docs/` folder. From this point forward, write down every weird thing you encounter.
 
 ---
+
+## What I built
+<one paragraph>
+
+## What I learned (concepts)
+- Concept 1: <my explanation, not copy-pasted>
+- Concept 2: ...
+
+## What surprised me
+<things that didn't match the docs, or that took me hours to figure out>
+
+## What I'd do differently
+<honest postmortem>
+
+## Verification evidence
+<screenshots, serial logs, gdb sessions>
+
+## Open questions
+<things I deferred — return to these later>
