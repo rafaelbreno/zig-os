@@ -10,7 +10,7 @@
   - **What:** Download Zig 0.16.0, add to `PATH`, run `zig version`.
   - **Verify:** `zig version` prints `0.16.0`.
   - **Notes:**
-    - Currently I installed on MacOS using `brew`
+    - Currently I installed on MacOS using `brew install zig`
 
 - [x] **Install QEMU**
   - **Why:** You will *never* test on real hardware first. QEMU emulates a full x86_64 machine, lets you pause it, inspect registers, and reboot in milliseconds.
@@ -18,7 +18,7 @@
   - **What:** Install `qemu-system-x86_64`. On Arch: `sudo pacman -S qemu-full`.
   - **Verify:** `qemu-system-x86_64 --version` prints a version.
   - **Notes:**
-    - Currently I installed on MacOS using `brew`
+    - Currently I installed on MacOS using `brew install qemu`
 
 - [x] **Install GDB with multi-arch support**
   - **Why:** GDB attached to QEMU is your X-ray machine. You'll use it from Phase 1 onward.
@@ -26,7 +26,7 @@
   - **What:** Install `gdb` (Arch package: `gdb`). Confirm it lists `i386:x86-64` as a target.
   - **Verify:** `gdb -ex "set architecture i386:x86-64" -ex "quit"` exits cleanly.
   - **Notes:**
-    - Installed on MacOS using `brew`
+    - Installed on MacOS using `brew install gdb`
 
 - [x] **Install ISO/disk image tools**
   - **Why:** Bootable media is how Limine and QEMU hand off to your kernel.
@@ -34,23 +34,24 @@
   - **What:** Install `xorriso` and `mtools` (Limine needs both).
   - **Verify:** `xorriso --version` prints a version.
   - **Notes:**
-    - Installed on MacOS using `brew`
+    - Installed on MacOS using `brew install xorriso` and `brew install mtools`
 
 ## 0.2 Understand the build target
 
-- [ ] **Study freestanding targets**
+- [x] **Study freestanding targets**
   - **Why:** Your kernel runs *before* any OS exists. There is no `libc`, no syscalls, no `printf`. "Freestanding" is the compiler mode for this.
   - **Study:** What "freestanding" means in compiler terms. The difference between `x86_64-linux-gnu` and `x86_64-freestanding-none`.
   - **What:** Read Zig docs on target triples and `std.Target`.
   - **Verify:** You can explain in one sentence why your kernel can't use `std.io`.
   - **Notes:**
 
-- [ ] **Study ELF basics**
+- [x] **Study ELF basics**
   - **Why:** Your compiler outputs an ELF file. The bootloader reads ELF headers to load your kernel into memory.
   - **Study:** ELF sections (`.text`, `.data`, `.bss`, `.rodata`). Program headers vs section headers. What `readelf` shows.
   - **What:** Pick any compiled binary and run `readelf -a` on it. Identify each section.
   - **Verify:** You can name what each of the four sections above holds.
   - **Notes:**
+    - Installed `readelf` on MacOS using `brew install binutils`
 
 ## 0.3 First freestanding build
 
@@ -92,21 +93,3 @@ You can run `zig build` and reliably produce an ELF kernel binary. You can read 
 
 ---
 
-## What I built
-<one paragraph>
-
-## What I learned (concepts)
-- Concept 1: <my explanation, not copy-pasted>
-- Concept 2: ...
-
-## What surprised me
-<things that didn't match the docs, or that took me hours to figure out>
-
-## What I'd do differently
-<honest postmortem>
-
-## Verification evidence
-<screenshots, serial logs, gdb sessions>
-
-## Open questions
-<things I deferred — return to these later>
