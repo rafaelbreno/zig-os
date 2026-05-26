@@ -121,22 +121,5 @@ brew install --cask gdb   # or: brew install gdb (may require codesigning)
 - **`xorriso` on macOS:** Homebrew's `xorriso` package works correctly. Do not use the version that comes with some older Xcode command-line tools bundles as it may be outdated.
 - **KVM unavailable:** QEMU on macOS cannot use KVM (Linux-only kernel virtualization). On Apple Silicon, QEMU uses HVF (Hypervisor.framework) instead. For an x86_64 kernel target on Apple Silicon, QEMU will use software emulation (TCG), which is slower. For development purposes this is fine; your kernel will boot in seconds regardless.
 
-#### Windows
-Windows is the most friction-prone host. The recommended approach is to use **WSL2** (Windows Subsystem for Linux) and follow the Linux instructions inside it. Native Windows development is possible but involves extra steps:
-
-- **Native Windows:** Install QEMU from [qemu.weilnetz.de](https://qemu.weilnetz.de/w64/). `xorriso` is available via MSYS2 (`pacman -S xorriso`). GDB is available via MSYS2 as well. Paths with spaces in `build.zig` `addSystemCommand` calls need careful quoting.
-- **WSL2 (strongly recommended):** Install WSL2 with Ubuntu, then follow the Linux instructions exactly. QEMU inside WSL2 can display via WSLg (Windows 11) or via an X server (Windows 10). Serial output via `-serial stdio` always works regardless.
-
-#### Summary Table
-
-| Tool | Linux | macOS | Windows (WSL2) |
-|---|---|---|---|
-| Zig 0.16.0 | Download tarball or package manager | Download tarball or `brew install zig` | Download tarball inside WSL2 |
-| `qemu-system-x86_64` | Package manager | `brew install qemu` | Package manager inside WSL2 |
-| `xorriso` | Package manager | `brew install xorriso` | Package manager inside WSL2 |
-| `mtools` | Package manager | `brew install mtools` | Package manager inside WSL2 |
-| `gdb` | Package manager | `brew install gdb` + codesign | Package manager inside WSL2 |
-| `objdump` / `readelf` | `binutils` package | `brew install binutils` (add to PATH) | `binutils` inside WSL2 |
-
 #### A Note on ARM Hosts (Apple Silicon, Raspberry Pi, etc.)
 Zig cross-compiles to `x86_64-freestanding-none` from any host architecture without issue. QEMU on an ARM host will emulate the x86_64 CPU in software (TCG mode), which is slower than native execution but fully correct. All debugging and testing workflows work identically.

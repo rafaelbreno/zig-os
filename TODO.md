@@ -1,774 +1,1202 @@
-# Complete 64-bit x86_64 Operating System in Zig 0.16.0
-## Comprehensive TODO List — Study-Then-Implement Methodology
+# Building a 64-bit x86_64 Operating System in Zig 0.16.0
+
+## A Progressive Roadmap from Zero to a Working OS
+
+> [!IMPORTANT]
+> **How to use this roadmap**
+>
+> Each task follows the same structure:
+> - **Why** — the concept behind it and what to go study
+> - **What** — the concrete action to take
+> - **Verify** — how to *see* it working (no working in the dark)
+> - **Notes** — a blank space for you to write your own documentation as you go
+>
+> Every phase ends with a **Milestone** (a visible, demonstrable result) and a **Debug Checkpoint** (tools and techniques to inspect what's happening). Don't skip the debug checkpoints — they are how you keep your sanity.
+>
+> Study pointers are intentionally short. The roadmap tells you *what* to learn and *why you need it*, not the full theory. Use OSDev Wiki, Intel SDM Vol. 3, and the Zig source as your study companions.
 
 ---
 
-## Section 1: Development Environment Setup
+## Phase 0 — The Sandbox: Tooling, Emulation, and Your First ELF
 
-### Chapter 1.1: Zig 0.16.0 Installation
+**Goal of this phase:** Have a build pipeline you trust. You will produce many broken binaries before you produce a working OS; if you can't trust your tools, you can't trust your debugging.
 
-#### Study Phase
-- [ ] Study: Zig 0.16.0 compilation pipeline and release model
-- [ ] Study: Freestanding target configuration (`x86_64-freestanding-none`)
-- [ ] Study: Platform-specific build requirements for your host OS
+### 0.1 Install the toolchain
 
-#### Implementation Phase
-- [ ] Install Zig 0.16.0 and add to `$PATH`
-- [ ] Verify installation: `zig version` outputs `0.16.0`
-- [ ] Confirm freestanding target is available: `zig targets | grep x86_64-freestanding`
+- [ ] **Install Zig 0.16.0**
+  - **Why:** Zig is your only compiler. Version matters — `build.zig` APIs shift between minor versions.
+  - **Study:** Zig release notes for 0.16.0 (focus on `build.zig` API changes).
+  - **What:** Download Zig 0.16.0, add to `PATH`, run `zig version`.
+  - **Verify:** `zig version` prints `0.16.0`.
+  - **Notes:**
 
-### Chapter 1.2: Additional Development Tools
+- [ ] **Install QEMU**
+  - **Why:** You will *never* test on real hardware first. QEMU emulates a full x86_64 machine, lets you pause it, inspect registers, and reboot in milliseconds.
+  - **Study:** Difference between emulation (QEMU) and virtualization (KVM). Why QEMU is preferred for early OS dev.
+  - **What:** Install `qemu-system-x86_64`. On Arch: `sudo pacman -S qemu-full`.
+  - **Verify:** `qemu-system-x86_64 --version` prints a version.
+  - **Notes:**
 
-#### Study Phase
-- [ ] Study: QEMU emulator architecture and machine models
-- [ ] Study: GDB debugging for OS/kernel development
-- [ ] Study: ELF binary analysis tools and their use cases
+- [ ] **Install GDB with multi-arch support**
+  - **Why:** GDB attached to QEMU is your X-ray machine. You'll use it from Phase 1 onward.
+  - **Study:** What "remote debugging" means. The role of `gdbserver`.
+  - **What:** Install `gdb` (Arch package: `gdb`). Confirm it lists `i386:x86-64` as a target.
+  - **Verify:** `gdb -ex "set architecture i386:x86-64" -ex "quit"` exits cleanly.
+  - **Notes:**
 
-#### Implementation Phase
-- [ ] Install `qemu-system-x86_64` (version >= 8.0) and verify
-- [ ] Install and configure GDB with x86_64 support
-- [ ] Install Limine bootloader tools
-- [ ] Install binary analysis utilities: `objdump`, `nm`, `readelf`, `hexdump`
-- [ ] Install ISO creation tools: `xorriso`, `mtools`
-- [ ] Run a check script confirming all tools are on `$PATH`
+- [ ] **Install ISO/disk image tools**
+  - **Why:** Bootable media is how Limine and QEMU hand off to your kernel.
+  - **Study:** What an ISO 9660 image is. The role of `xorriso`.
+  - **What:** Install `xorriso` and `mtools` (Limine needs both).
+  - **Verify:** `xorriso --version` prints a version.
+  - **Notes:**
 
-### Chapter 1.3: Project Structure and Build System
+### 0.2 Understand the build target
 
-#### Study Phase
-- [ ] Study: Zig build system architecture (`build.zig` as a Zig program)
-- [ ] Study: Freestanding target configuration — no libc, no runtime
-- [ ] Study: Red zone and why it must be disabled for kernel interrupt handlers
-- [ ] Study: Linker script syntax and section layout concepts
+- [ ] **Study freestanding targets**
+  - **Why:** Your kernel runs *before* any OS exists. There is no `libc`, no syscalls, no `printf`. "Freestanding" is the compiler mode for this.
+  - **Study:** What "freestanding" means in compiler terms. The difference between `x86_64-linux-gnu` and `x86_64-freestanding-none`.
+  - **What:** Read Zig docs on target triples and `std.Target`.
+  - **Verify:** You can explain in one sentence why your kernel can't use `std.io`.
+  - **Notes:**
 
-#### Implementation Phase
-- [ ] Create the full project directory tree:
-  ```
-  src/{boot/,drivers/,arch/,mm/,sched/,syscall/,fs/}
-  userland/
-  iso/boot/
-  ```
-- [ ] Create `build.zig` with `x86_64-freestanding-none` target and red zone disabled
-- [ ] Attach `src/boot/boot.s` as an assembly source file
-- [ ] Set `linker.ld` as the linker script; disable stack protector and PIE
-- [ ] Add `iso` build step (packages ELF into bootable ISO via Limine)
-- [ ] Add `run` build step (launches QEMU with `-serial stdio -m 256M -no-reboot`)
-- [ ] Add `debug` build step (launches QEMU with `-s -S` for GDB attachment)
-- [ ] Verify build script parses cleanly: `zig build --help`
+- [ ] **Study ELF basics**
+  - **Why:** Your compiler outputs an ELF file. The bootloader reads ELF headers to load your kernel into memory.
+  - **Study:** ELF sections (`.text`, `.data`, `.bss`, `.rodata`). Program headers vs section headers. What `readelf` shows.
+  - **What:** Pick any compiled binary and run `readelf -a` on it. Identify each section.
+  - **Verify:** You can name what each of the four sections above holds.
+  - **Notes:**
 
-### Chapter 1.4: Linker Script (`linker.ld`)
+### 0.3 First freestanding build
 
-#### Study Phase
-- [ ] Study: VMA (virtual) vs LMA (load) addresses and why they differ for a higher-half kernel
-- [ ] Study: ELF section types — PROGBITS vs NOBITS (`.bss`)
+- [ ] **Create the project skeleton**
+  - **Why:** A predictable directory layout saves hours later.
+  - **What:** Create `kernel/`, `boot/`, `build/`. Inside `kernel/`, create `src/main.zig`.
+  - **Verify:** `tree .` shows your structure.
+  - **Notes:**
 
-#### Implementation Phase
-- [ ] Define `KERNEL_PHYS_BASE`, `KERNEL_VIRT_BASE`, and `KERNEL_VMA_OFFSET` constants
-- [ ] Set output format to `elf64-x86-64` and entry point to `_start`
-- [ ] Place `.boot` section first (Limine header within first 32KB)
-- [ ] Place `.text` (R-X), `.rodata` (R--), `.data` (RW-) with 4K alignment and correct LMAs
-- [ ] Place `.bss` (NOBITS) and export `_bss_start` / `_bss_end` symbols
-- [ ] Export `_kernel_start` and `_kernel_end` symbols
-- [ ] Discard `.comment`, `.note*`, `.eh_frame*` sections
-- [ ] Verify section VMAs with `objdump -h kernel.elf` (`.text` should be in the higher half)
+- [ ] **Write a minimal `main.zig`**
+  - **Why:** Start with the smallest thing that compiles for a freestanding target.
+  - **What:** Define an exported function `_start` that loops forever (`while (true) {}`).
+  - **Verify:** The file is under 10 lines.
+  - **Notes:**
 
----
+- [ ] **Write `build.zig` for freestanding x86_64**
+  - **Why:** This file is how you control the compiler. Get it right once.
+  - **Study:** `std.Build`, `addExecutable`, `setTarget`, `code_model`, `red_zone`.
+  - **What:** Configure the target as `x86_64-freestanding-none`. Disable the red zone. Set the code model to `.kernel`. Disable SIMD/SSE for now.
+  - **Verify:** `zig build` succeeds and produces an ELF file under `zig-out/`.
+  - **Notes:**
 
-## Section 2: Bootloader Integration and Entry
+- [ ] **Inspect your output**
+  - **Why:** Trust but verify. Look at what the compiler produced.
+  - **What:** Run `readelf -h zig-out/bin/kernel.elf` and `objdump -d zig-out/bin/kernel.elf`.
+  - **Verify:** You can find `_start` in the disassembly and it's a simple infinite loop.
+  - **Notes:**
 
-### Chapter 2.1: Limine Bootloader Setup
+### Phase 0 Milestone
 
-#### Study Phase
-- [ ] Study: Limine bootloader protocol (Base Revision 3) — requests, responses, and tags
-- [ ] Study: Limine entry state — already in 64-bit Long Mode with paging enabled
-- [ ] Study: Limine memory map entry types (usable, reserved, bootloader-reclaimable, etc.)
-- [ ] Study: Limine module request (for loading the initrd in Section 13)
-- [ ] Study: Limine-Zig integration patterns
+You can run `zig build` and reliably produce an ELF kernel binary. You can read its assembly and find your `_start` function.
 
-#### Implementation Phase
-- [ ] Add Limine as a `build.zig` dependency (fetch via `zig fetch`)
-- [ ] Create `limine.conf` with kernel path and any boot modules
-- [ ] Update `linker.ld` to handle Limine request sections (`.limine_requests`)
-- [ ] Create the ISO build step using `limine-deploy` on the output image
+### Phase 0 Debug Checkpoint
 
-### Chapter 2.2: Kernel Entry Point
-
-#### Study Phase
-- [ ] Study: x86_64 System V ABI calling conventions
-- [ ] Study: Freestanding environment requirements — no `std` runtime, manual panic handler
-- [ ] Study: Limine entry state — guaranteed 64-bit, paging on, stack valid, interrupts off
-
-#### Implementation Phase
-- [ ] Create `src/main.zig` with Limine base revision request (`limine.BaseRevision`)
-- [ ] Define `export fn _start() callconv(.C) noreturn` as the kernel entry point
-- [ ] Verify Limine base revision is valid; halt with error if not
-- [ ] Declare `extern` symbols for `_bss_start`, `_bss_end`, `_kernel_start`, `_kernel_end`
-- [ ] Zero the `.bss` section manually in `_start` before calling any Zig code
-- [ ] Implement `pub fn hang() noreturn` using `asm volatile ("cli; hlt")`
-- [ ] Implement the required `pub fn panic(msg, trace, ret_addr) noreturn` handler
-- [ ] Add stubbed `TODO` calls in `_start` for each future subsystem
-- [ ] Test minimal kernel boot in QEMU; confirm no triple-fault reboot loop
-- [ ] Verify Long Mode is active: open QEMU monitor (`Ctrl+Alt+2`), run `info registers`, confirm `CS` has the `l` flag
-
-### Chapter 2.3: GDB Integration
-
-#### Implementation Phase
-- [ ] Create `kernel.gdb`: connect to `localhost:1234`, load symbols, break at `_start`
-- [ ] Add convenience commands: `print-regs`, `print-cr-regs`, `print-pml4`
-- [ ] Test: boot QEMU with `-s -S`, attach GDB, confirm breakpoint fires at `_start`
+- [ ] Practice using `readelf -S` to list sections.
+- [ ] Practice using `objdump -d --disassembler-color=on` to read x86_64 assembly.
+- [ ] Bookmark the OSDev Wiki page on "Bare Bones" and "Beginner Mistakes".
+- [ ] Open a notebook or `docs/` folder. From this point forward, write down every weird thing you encounter.
 
 ---
 
-## Section 3: Basic Output — "Hello World"
+## Phase 1 — The Spark: Booting Into Your Kernel
 
-### Chapter 3.1: Port I/O Primitives (`src/arch/io.zig`)
+**Goal of this phase:** When you press "play" in QEMU, *your code runs*. Nothing more — but that "nothing more" is everything.
 
-#### Implementation Phase
-- [ ] Implement `outb(port: u16, value: u8)` using inline assembly (`out dx, al`)
-- [ ] Implement `inb(port: u16) u8` using inline assembly (`in al, dx`)
-- [ ] Implement `outw` and `inw` 16-bit variants
-- [ ] Implement `ioDelay()` (write to unused port `0x80`)
+### 1.1 Understand the boot chain
 
-### Chapter 3.2: Serial Port Driver (`src/drivers/serial.zig`)
+- [ ] **Study how an x86_64 PC boots**
+  - **Why:** You need to know what hands control to whom. Power → firmware → bootloader → your kernel.
+  - **Study:** BIOS vs UEFI. POST. The role of the bootloader. Why we don't write our own bootloader (yet).
+  - **What:** Read OSDev Wiki: "Boot Sequence", "Limine".
+  - **Verify:** You can draw the boot chain on paper.
+  - **Notes:**
 
-#### Study Phase
-- [ ] Study: UART 16550 register map (RBR/THR, IER, FCR, LCR, MCR, LSR) and DLAB mode
-- [ ] Study: Baud rate divisor calculation and 8N1 framing
-- [ ] Study: QEMU `-serial stdio` integration
+- [ ] **Study the Limine boot protocol**
+  - **Why:** Limine is modern, simple, supports both BIOS and UEFI, and gives your kernel a clean handoff with a memory map already prepared.
+  - **Study:** Limine boot protocol specification (request/response model, what info it provides).
+  - **What:** Read the Limine protocol docs end-to-end once.
+  - **Verify:** You can list three things Limine gives you (memory map, framebuffer, kernel virtual address, HHDM, etc.).
+  - **Notes:**
 
-#### Implementation Phase
-- [ ] Define COM1 base address (`0x3F8`) and all register offset constants
-- [ ] Implement `init()`: disable IRQs, set DLAB, write baud divisor, set 8N1, enable FIFO, set MCR
-- [ ] Implement loopback self-test in `init()`; mark port unavailable on failure
-- [ ] Implement `writeByte(byte: u8)` with busy-wait on `LSR_TX_EMPTY`
-- [ ] Implement `writeString(s: []const u8)`
-- [ ] Implement `writeHex(value: u64)` for address/pointer debug output
-- [ ] Implement `writeDec(value: u64)` for integer debug output
-- [ ] Implement log-level infrastructure: `DEBUG`, `INFO`, `WARN`, `ERROR` prefixed output
-- [ ] Call `serial.init()` as the very first operation in `_start`; print kernel load address range
-- [ ] Update `panic` handler to write to serial before halting
-- [ ] Test: confirm output appears in terminal via `-serial stdio`
+### 1.2 The linker script
 
-### Chapter 3.3: VGA Text Mode Driver (`src/drivers/vga.zig`)
+- [ ] **Study linker scripts**
+  - **Why:** The linker decides *where* each part of your kernel lives in memory. The bootloader expects specific addresses.
+  - **Study:** GNU `ld` script syntax. `SECTIONS`, `ENTRY`, `PROVIDE`, alignment, the `.` location counter.
+  - **What:** Read examples of minimal kernel linker scripts.
+  - **Verify:** You can explain what `. = ALIGN(4K);` does.
+  - **Notes:**
 
-#### Study Phase
-- [ ] Study: VGA text buffer layout — `0xB8000`, 80×25, 2 bytes per cell
-- [ ] Study: `*volatile T` in Zig and why it is mandatory for MMIO
-- [ ] Study: VGA color attribute byte format (fg nibble, bg nibble)
+- [ ] **Write `linker.ld`**
+  - **Why:** Without this, your sections land at unpredictable addresses and the bootloader can't find anything.
+  - **What:** Define `ENTRY(_start)`. Place `.text`, `.rodata`, `.data`, `.bss` at a high-half virtual address (`0xFFFFFFFF80000000`). Align each section to 4K.
+  - **Verify:** `readelf -l zig-out/bin/kernel.elf` shows program headers at the addresses you specified.
+  - **Notes:**
 
-#### Implementation Phase
-- [ ] Define `Color` enum (`u4`) with all 16 VGA palette entries
-- [ ] Implement `makeColor(fg, bg) u8`
-- [ ] Define `VgaEntry` as a `packed struct(u16)` (`char: u8`, `attribute: u8`)
-- [ ] Declare the VGA buffer as `*volatile [25][80]VgaEntry` pointing to `0xB8000`
-- [ ] Implement `init()`: set buffer pointer, set default color, call `clear()`
-- [ ] Implement `clear()`: fill buffer with blank entries, reset cursor to (0, 0)
-- [ ] Implement `putChar(c: u8)` handling `\n`, `\r`, `\t`, backspace, and printable characters
-- [ ] Implement `writeString(s: []const u8)` and `setColor(fg, bg)`
-- [ ] Implement scroll-up when the cursor reaches row 25
-- [ ] Implement `updateHardwareCursor()` via CRTC ports `0x3D4`/`0x3D5`
-- [ ] Call `vga.init()` in `_start`; print a colored startup banner
-- [ ] Update `panic` handler to display message on VGA with red background
-- [ ] Test: confirm colored text in QEMU display window
-- [ ] Test: temporarily add `@panic("test")` to verify the red panic screen works
+- [ ] **Wire the linker script into `build.zig`**
+  - **Why:** Zig needs to know to use your custom script.
+  - **What:** Pass `-T linker.ld` (or the Zig equivalent: `setLinkerScript`).
+  - **Verify:** Rebuild — addresses in `readelf` now match your script.
+  - **Notes:**
 
----
+### 1.3 Limine boot setup
 
-## Section 4: Core Kernel Structures
+- [ ] **Add Limine requests to your kernel**
+  - **Why:** Limine only gives you the information you ask for. You request features via specially-marked structs in your binary.
+  - **Study:** Limine "requests" — how they work, why they're put in a dedicated `.requests` section.
+  - **What:** Add a base revision marker and a framebuffer request to your kernel. Put them in a `.requests` section in the linker script.
+  - **Verify:** `readelf -S` shows the `.requests` section in your ELF.
+  - **Notes:**
 
-### Chapter 4.1: Global Descriptor Table (`src/arch/gdt.zig`)
+- [ ] **Write `limine.conf`**
+  - **Why:** Limine reads this to know which kernel to load.
+  - **What:** Create a boot entry pointing to `boot:///kernel.elf` with protocol `limine`.
+  - **Verify:** The file syntax matches the Limine docs.
+  - **Notes:**
 
-#### Study Phase
-- [ ] Study: x86_64 segmentation model — mostly flat, but GDT still required
-- [ ] Study: GDT entry format — 8-byte descriptor bit layout
-- [ ] Study: TSS in 64-bit mode — 104-byte structure, IST entries, RSP0
-- [ ] Study: GDT loading procedure — `lgdt`, far return trick to reload CS
+- [ ] **Update `_start` to halt cleanly**
+  - **Why:** "Looping forever" with `while(true)` wastes CPU and is harder to spot in QEMU. `cli; hlt` is the canonical "kernel is alive and waiting" pose.
+  - **Study:** What `cli` and `hlt` do at the CPU level. Why interrupts must be disabled before halt.
+  - **What:** Replace your infinite loop with inline assembly: `cli`, then a loop of `hlt`.
+  - **Verify:** Compile and check the disassembly — you see `cli` and `hlt` instructions.
+  - **Notes:**
 
-#### Implementation Phase
-- [ ] Define `GdtEntry` as a `packed struct(u64)` matching the hardware descriptor format
-- [ ] Define the `Tss` structure as a `packed struct` (104 bytes per Intel spec)
-- [ ] Build a GDT: null, kernel code, kernel data, user code, user data, TSS (16-byte entry)
-- [ ] Define segment selector constants: `KERNEL_CS`, `KERNEL_DS`, `USER_CS`, `USER_DS`, `TSS_SEL`
-- [ ] Define `GdtPointer` as a `packed struct` with `limit: u16` and `base: u64`
-- [ ] Implement `load()`: call `lgdt`, reload CS via far return, reload DS/ES/SS
-- [ ] Implement `loadTss()`: call `ltr` via inline assembly with the TSS selector
-- [ ] Set `TSS.rsp0` to the kernel stack pointer (required for Ring 3 → Ring 0 transitions)
-- [ ] Call `gdt.init()` early in `_start` before IDT
-- [ ] Verify: QEMU monitor `info gdt` shows valid descriptors
+### 1.4 Build the bootable ISO
 
-### Chapter 4.2: Interrupt Descriptor Table (`src/arch/idt.zig`)
+- [ ] **Add ISO build steps to `build.zig`**
+  - **Why:** Automating this means you can iterate fast. Manual steps will exhaust you.
+  - **Study:** Limine's "How to install" instructions. The role of `limine-bios.sys`, `limine-uefi-cd.bin`, and `limine bios-install`.
+  - **What:** Add a `zig build iso` step that: copies the kernel + Limine binaries + config into a staging folder, runs `xorriso` to make the ISO, runs `limine bios-install` to make it bootable.
+  - **Verify:** `zig build iso` produces `os.iso` in `zig-out/`.
+  - **Notes:**
 
-#### Study Phase
-- [ ] Study: x86_64 interrupt/exception architecture — hardware-pushed stack frame
-- [ ] Study: IDT entry format — 16-byte gate descriptor bit layout
-- [ ] Study: Interrupt handling procedure — privilege checks, stack switching
-- [ ] Study: Common CPU exceptions: #DE (0), #PF (14), #GP (13), #DF (8)
+- [ ] **Add a `zig build run` step**
+  - **Why:** One command to build and boot. Critical for fast iteration.
+  - **What:** Add a step that runs `qemu-system-x86_64 -cdrom zig-out/os.iso -serial stdio -no-reboot -no-shutdown`.
+  - **Verify:** `zig build run` launches QEMU.
+  - **Notes:**
 
-#### Implementation Phase
-- [ ] Define `IdtEntry` as a `packed struct(u128)` matching the hardware 16-byte gate format
-- [ ] Define `IdtPointer` as a `packed struct` with `limit: u16` and `base: u64`
-- [ ] Implement `setEntry(vector, handler_addr, selector, flags)` helper
-- [ ] Use `comptime` to generate stub handler functions for all 256 vectors
-- [ ] Implement a common interrupt handler that logs vector number and halts
-- [ ] Implement `load()`: populate the IDT array and call `lidt` via inline assembly
-- [ ] Call `idt.init()` in `_start` after GDT; enable interrupts with `sti` after PIC init
+- [ ] **Boot your kernel for the first time**
+  - **Why:** This is the milestone moment.
+  - **What:** Run `zig build run`.
+  - **Verify:** QEMU shows a black screen (or the Limine logo briefly) and stays running. No reboots. No "no bootable device" errors.
+  - **Notes:**
 
-### Chapter 4.3: Exception Handlers
+### Phase 1 Milestone
 
-#### Study Phase
-- [ ] Study: Exception stack frames — hardware-pushed RIP, CS, RFLAGS, RSP, SS
-- [ ] Study: Error code format for #PF, #GP, #TS, #SS, #NP, #DF
-- [ ] Study: Double fault handling with IST — dedicated stack in TSS
+QEMU boots, Limine runs, and your kernel reaches `cli; hlt`. You have proven your toolchain works end-to-end. Take a screenshot.
 
-#### Implementation Phase
-- [ ] Implement dedicated handlers for exceptions 0–14, dispatching to a common handler
-- [ ] Define a `CpuState` struct; save full register state (all GPRs) on exception entry
-- [ ] Print a complete register dump to serial on any unhandled exception
-- [ ] Implement `#PF` handler: read faulting address from `CR2`, decode error code bits
-- [ ] Implement `#DF` handler on a dedicated IST stack (set IST index in TSS and IDT entry)
-- [ ] Test: trigger a divide-by-zero from `_start`; verify the handler fires and prints info
+### Phase 1 Debug Checkpoint
+
+- [ ] **Add a GDB build step**
+  - **What:** Add a `zig build debug` step that runs QEMU with `-s -S` (gdb server, paused at start).
+  - **Verify:** Connect with `gdb zig-out/bin/kernel.elf` then `target remote :1234`. Set a breakpoint at `_start`. Type `continue`. GDB stops at your entry point.
+
+- [ ] **Use the QEMU monitor**
+  - **What:** Run QEMU with `-monitor stdio`. Press `Ctrl+A, C` (or open the monitor in the GUI). Try `info registers`, `info mem`, `x/10i $rip`.
+  - **Verify:** You can read your kernel's instruction pointer (`RIP`) and see it pointing at the `hlt` loop.
+  - **Notes:**
+
+- [ ] Write up in your notes: "What is the exact sequence of events from power-on to `_start`?"
 
 ---
 
-## Section 5: Hardware Interaction
+## Phase 2 — Finding Your Voice: Output (and Why It Matters First)
 
-### Chapter 5.1: Programmable Interrupt Controller (`src/arch/pic.zig`)
+**Goal of this phase:** Two independent ways to see what your kernel is doing — a serial port (text to your host terminal) and a framebuffer (pixels on the screen). Output before everything else, because debugging without output is suffering.
 
-#### Study Phase
-- [ ] Study: 8259A PIC architecture — master (IRQ 0–7) and slave (IRQ 8–15) cascade
-- [ ] Study: PIC remapping — move IRQs to vectors 32–47 to avoid collision with CPU exceptions
-- [ ] Study: Interrupt Mask Register (IMR) and End-of-Interrupt (EOI) protocol
+> Note on VGA text mode: the original roadmap used `0xB8000`. Modern Limine-booted kernels run in long mode with a graphical framebuffer, not VGA text mode. We will use the framebuffer instead — it's more useful and more honest about how real systems work. The serial port comes *first* because it works even when the framebuffer is broken.
 
-#### Implementation Phase
-- [ ] Define master (`0x20`) and slave (`0xA0`) PIC port constants
-- [ ] Implement `init()`: send ICW1–ICW4 to remap IRQs to vectors 32–47
-- [ ] Implement `sendEoi(irq: u8)`: send EOI to master and conditionally to slave
-- [ ] Implement `maskIrq(irq: u8)` and `unmaskIrq(irq: u8)` via the IMR
-- [ ] Implement `disable()`: mask all IRQs on both PICs (for future APIC migration)
-- [ ] Call `pic.init()` in `_start` before enabling interrupts
+### 2.1 Serial output (do this first)
 
-### Chapter 5.2: Programmable Interval Timer (`src/arch/pit.zig`)
+- [ ] **Study x86 port I/O**
+  - **Why:** Many legacy devices (including the serial port) are controlled through I/O ports, a separate address space from memory.
+  - **Study:** `in`/`out` instructions. Port addresses for COM1 (`0x3F8`). The 8250/16550 UART.
+  - **What:** Read OSDev Wiki: "Serial Ports".
+  - **Verify:** You can list the offsets for the data register, line status register, and line control register.
+  - **Notes:**
 
-#### Study Phase
-- [ ] Study: 8253/8254 PIT architecture — channels, operating modes, divisor calculation
-- [ ] Study: Timer interrupt (IRQ 0) — the heartbeat of the preemptive scheduler
+- [ ] **Write port I/O wrappers in Zig**
+  - **Why:** You'll use `inb`/`outb` from dozens of places. Wrap them once.
+  - **Study:** Zig inline assembly syntax (`asm volatile`, output/input/clobber).
+  - **What:** Create `src/arch/x86_64/port.zig` with `outb`, `inb`, `outw`, `inw`, `outl`, `inl`.
+  - **Verify:** Code compiles. Inspect generated assembly with `objdump` to confirm real `in`/`out` instructions.
+  - **Notes:**
 
-#### Implementation Phase
-- [ ] Define PIT channel 0 port (`0x40`) and command port (`0x43`) constants
-- [ ] Implement `init(hz: u32)`: calculate divisor (`1193182 / hz`), program channel 0 in mode 3
-- [ ] Implement IRQ0 handler: increment a global tick counter, send EOI
-- [ ] Unmask IRQ0 after PIT init and enable interrupts
-- [ ] Implement `getTicks() u64` returning the current tick count
-- [ ] Implement `sleep(ms: u64)`: busy-wait until tick count advances by the required amount
-- [ ] Test: print tick count to serial every 100 ticks; confirm it increments
+- [ ] **Initialize COM1**
+  - **Why:** Without initialization the UART won't transmit.
+  - **Study:** UART init sequence: disable interrupts, set DLAB, set baud divisor, set 8N1, enable FIFO, set DTR/RTS.
+  - **What:** Create `src/drivers/serial.zig` with `init()`.
+  - **Verify:** After calling `init()`, the loopback test (set bit 4 of MCR, write byte, read back) succeeds.
+  - **Notes:**
 
-### Chapter 5.3: PS/2 Keyboard (`src/drivers/keyboard.zig`)
+- [ ] **Implement `writeByte` and `writeString`**
+  - **Why:** This is your first real output.
+  - **What:** Add functions that poll the Line Status Register's "transmitter empty" bit, then write a byte to the data register.
+  - **Verify:** Call `serial.writeString("Hello from kernel!\n")` from `_start`. Run with `-serial stdio`. Text appears in your terminal.
+  - **Notes:**
 
-#### Study Phase
-- [ ] Study: PS/2 keyboard controller — data port (`0x60`), status/command port (`0x64`)
-- [ ] Study: Scancode Set 1 — make/break codes and key mapping to ASCII
+- [ ] **Hook serial into Zig's `std.fmt`**
+  - **Why:** You want `print("value = {}\n", .{x})` to work. This is huge for debugging.
+  - **Study:** `std.fmt.format`, the `Writer` interface, how to satisfy it without `std.io`.
+  - **What:** Create a minimal `Writer` that calls `serial.writeByte`. Wrap `std.fmt.format` in a `print` function.
+  - **Verify:** `print("hex: {x}, dec: {d}\n", .{0xDEAD, 42})` outputs correctly to your terminal.
+  - **Notes:**
 
-#### Implementation Phase
-- [ ] Implement IRQ1 handler: read scancode from port `0x60`, push to circular buffer, send EOI
-- [ ] Implement a power-of-2 circular ring buffer for scancodes
-- [ ] Implement a Scancode Set 1 → ASCII translation table
-- [ ] Implement `getChar() ?u8`: return next ASCII character from the buffer, or null if empty
-- [ ] Implement `getLine(buf: []u8) []u8`: block until a newline is received
-- [ ] Unmask IRQ1 after keyboard init
-- [ ] Test: type characters in QEMU; confirm they appear via VGA `putChar`
+### 2.2 Framebuffer output
 
----
+- [ ] **Read Limine's framebuffer response**
+  - **Why:** Limine has already set up a linear framebuffer for you in long mode. You just need the pointer, width, height, and pitch.
+  - **Study:** Limine's framebuffer request/response structures. What "pitch" means (it's not always `width * bpp`).
+  - **What:** Access the response from your framebuffer request. Print its width, height, pitch, and address to serial.
+  - **Verify:** Serial shows reasonable values (e.g., 1024x768, pitch 4096).
+  - **Notes:**
 
-## Section 6: Physical Memory Management
+- [ ] **Paint your first pixel**
+  - **Why:** Smallest possible framebuffer test.
+  - **What:** Write a 32-bit color value to `framebuffer[0]`.
+  - **Verify:** A single colored dot appears at the top-left of the QEMU window.
+  - **Notes:**
 
-### Chapter 6.1: Memory Map Parsing
+- [ ] **Fill the screen with a color**
+  - **Why:** Confirms you understand pitch and dimensions.
+  - **What:** Loop over every pixel using `y * pitch + x * 4` indexing.
+  - **Verify:** QEMU shows a solid color across the whole window.
+  - **Notes:**
 
-#### Study Phase
-- [ ] Study: Limine memory map response structure and entry types
-- [ ] Study: Physical memory layout — reserved regions, kernel location, MMIO holes
-- [ ] Study: Memory frame concept — 4KB pages as the unit of physical allocation
+- [ ] **Embed a bitmap font**
+  - **Why:** Drawing text requires glyph data. Don't write your own — use a standard PSF font or an 8x8 ROM font.
+  - **Study:** The PSF1/PSF2 font formats, or just a public-domain 8x8 bitmap font header.
+  - **What:** Add a font file to your project. Embed it with `@embedFile`.
+  - **Verify:** You can index into the font and get the bitmap for the letter `A`.
+  - **Notes:**
 
-#### Implementation Phase
-- [ ] Add Limine memory map request to `_start`
-- [ ] Create `src/mm/pmm.zig` physical memory module
-- [ ] Iterate Limine memory map entries; collect and display usable regions
-- [ ] Print total usable RAM to serial at boot
-- [ ] Calculate and record kernel physical start and end addresses from linker symbols
+- [ ] **Draw a single glyph**
+  - **Why:** Verifies your font logic before building a full console.
+  - **What:** Write `drawChar(c, x, y, fg, bg)`. For each bit in the glyph, write a pixel.
+  - **Verify:** The letter `A` appears on the screen.
+  - **Notes:**
 
-### Chapter 6.2: Physical Frame Allocator — Bitmap
+- [ ] **Build a console abstraction**
+  - **Why:** You want `console.print("...")` to work like serial does.
+  - **What:** Track cursor position. Implement `putChar` with `\n` handling. Wrap `std.fmt.format` over it.
+  - **Verify:** Multi-line text prints correctly across the screen.
+  - **Notes:**
 
-#### Study Phase
-- [ ] Study: Bitmap allocator algorithm — 1 bit per 4KB frame, first-fit search
-- [ ] Study: Frame allocator invariants — must not allocate kernel or reserved frames
+- [ ] **Implement scrolling**
+  - **Why:** Once the screen fills up, you need to shift content up.
+  - **What:** When the cursor reaches the bottom, copy each row's memory up by one row height; clear the last row.
+  - **Verify:** Print 100 lines in a loop — text scrolls smoothly.
+  - **Notes:**
 
-#### Implementation Phase
-- [ ] Place the bitmap in a usable memory region large enough to cover all physical RAM
-- [ ] Implement `init(memory_map)`: size bitmap, mark all frames used, free usable regions, re-mark kernel frames as used
-- [ ] Implement `allocFrame() ?u64`: find first free bit, mark used, return physical address
-- [ ] Implement `freeFrame(phys_addr: u64)`: clear the corresponding bit
-- [ ] Implement `allocContiguous(n: usize) ?u64`: find `n` consecutive free frames
-- [ ] Implement `getStats()` returning total/free/used frame counts
-- [ ] Test: allocate 10 frames; verify addresses are unique and non-overlapping with the kernel
+### 2.3 Unify your output
 
----
+- [ ] **Build a single `log` module**
+  - **Why:** You want every important event to appear in *both* serial and framebuffer. Serial is for post-mortem analysis; framebuffer is for live feel.
+  - **What:** Create `src/log.zig` with `info`, `warn`, `err` functions that write to both sinks with a prefix.
+  - **Verify:** `log.info("kernel booted at {x}", .{addr})` shows in QEMU's window *and* your host terminal.
+  - **Notes:**
 
-## Section 7: Virtual Memory Management
+### Phase 2 Milestone
 
-### Chapter 7.1: Page Table Structures
+Your kernel prints colored, formatted log lines to both the QEMU window and your host terminal. You can `print` any integer in hex or decimal. You will never feel "in the dark" again.
 
-#### Study Phase
-- [ ] Study: x86_64 4-level paging hierarchy — PML4 → PDPT → PD → PT
-- [ ] Study: Page sizes — 4KB (PT entry), 2MB (PD huge page), 1GB (PDPT huge page)
-- [ ] Study: TLB and the `invlpg` instruction for targeted TLB invalidation
-- [ ] Study: Recursive page table mapping vs HHDM — trade-offs and HHDM advantages
+### Phase 2 Debug Checkpoint
 
-#### Implementation Phase
-- [ ] Define `PageTableEntry` as a `packed struct(u64)` with named flag bits (Present, Writable, User, WriteThrough, NoCache, Accessed, Dirty, HugePage, Global, NX)
-- [ ] Define `PageTable` as `[512]PageTableEntry`
-- [ ] Implement virtual address parsing: extract PML4/PDPT/PD/PT indices from a `u64`
-- [ ] Implement `setEntry` and `getPhysAddr` helpers
-
-### Chapter 7.2: Higher-Half Kernel Mapping
-
-#### Study Phase
-- [ ] Study: Higher-half kernel concept (`0xFFFFFFFF80000000` base convention)
-- [ ] Study: HHDM (Higher Half Direct Map) provided by Limine — offset for physical-to-virtual conversion
-- [ ] Study: Kernel section permissions — `.text` R-X, `.rodata` R--, `.data`/`.bss` RW-
-
-#### Implementation Phase
-- [ ] Add Limine HHDM request; store the HHDM offset at boot
-- [ ] Implement `physToVirt(phys: u64) u64` and `virtToPhys(virt: u64) u64`
-- [ ] Access existing page tables via the HHDM offset
-- [ ] Implement `newPageTable() *PageTable`: allocate a frame via PMM, zero it, return virtual pointer
-- [ ] Map kernel `.text` as R-X, `.rodata` as R--, `.data`/`.bss` as RW- in a new page table
-- [ ] Map VGA buffer (`0xB8000`) into the kernel virtual address space
-
-### Chapter 7.3: Page Table Management (`src/mm/vmm.zig`)
-
-#### Study Phase
-- [ ] Study: Page walk — traversing 4 levels to reach a PT entry, creating tables on demand
-- [ ] Study: Page fault handling — present bit, write fault, protection violation
-
-#### Implementation Phase
-- [ ] Implement `getOrCreateTable(parent, index, flags) *PageTable`: walk one level, allocate via PMM if not present
-- [ ] Implement `mapPage(pml4, virt, phys, flags)`: walk/create all 4 levels, set the PT entry
-- [ ] Implement `unmapPage(pml4, virt)`: clear the PT entry, flush TLB with `invlpg` via inline assembly
-- [ ] Implement `loadPageTable(pml4_phys: u64)`: write to `CR3` via inline assembly
-- [ ] Implement `cloneKernelMappings(dest_pml4)`: copy upper-half PML4 entries into a new table
-- [ ] Switch to the new kernel page table with `loadPageTable`
-- [ ] Improve the `#PF` handler to use VMM info for meaningful error messages
-- [ ] Test: confirm kernel continues executing after the CR3 switch; print a serial confirmation
+- [ ] Print every Limine response struct's contents at boot. Confirm sane values.
+- [ ] Print your kernel's load address. Compare it to your linker script's expected address.
+- [ ] In GDB, set a breakpoint on `serial.writeByte` and step through one character's worth of output.
+- [ ] Write up: "How does `std.fmt.format` route from my `print()` to the UART data register?"
 
 ---
 
-## Section 8: Kernel Heap Management
+## Phase 3 — CPU Foundations: GDT, IDT, and Catching Crashes
 
-### Chapter 8.1: Simple Heap Allocator (`src/mm/heap.zig`)
+**Goal of this phase:** When something goes wrong (and it will, daily), you see a crash dump instead of a silent reboot.
 
-#### Study Phase
-- [ ] Study: Heap allocator requirements — alignment, minimum block size, metadata overhead
-- [ ] Study: Free-list allocator design — block header, first-fit search, coalescing
-- [ ] Study: Zig `std.mem.Allocator` interface — `allocFn`, `resizeFn`, `freeFn` vtable pattern
+### 3.1 The Global Descriptor Table (GDT)
 
-#### Implementation Phase
-- [ ] Reserve a virtual address range for the kernel heap (e.g., 4MB at a fixed higher-half address)
-- [ ] Map the initial heap region (e.g., first 64KB) using the VMM
-- [ ] Define a `BlockHeader` struct: `size: usize`, `free: bool`, `next: ?*BlockHeader`
-- [ ] Implement `init()`: place the first free block header at the heap base
-- [ ] Implement `findFree(size: usize) ?*BlockHeader`: first-fit search through the free list
-- [ ] Implement `splitBlock(block, size)`: split if the remainder is large enough for a header + 1 byte
-- [ ] Implement `alloc(size: usize, alignment: usize) ?[*]u8`: find/split a block, mark used, return aligned pointer
-- [ ] Implement `free(ptr: [*]u8)`: mark block free, coalesce with adjacent free blocks
-- [ ] Implement `expandHeap()`: map additional pages from PMM when no suitable block is found
+- [ ] **Study segmentation in long mode**
+  - **Why:** In 64-bit mode, segmentation is mostly disabled — but the CPU still requires a GDT with valid descriptors to function.
+  - **Study:** GDT entry format, segment selectors, code/data segments, the `L` (long mode) bit, why `CS` and `SS` still matter.
+  - **What:** Read OSDev Wiki: "Global Descriptor Table".
+  - **Verify:** You can describe what each field of a 64-bit code segment descriptor does.
+  - **Notes:**
 
-### Chapter 8.2: Zig Allocator Integration
+- [ ] **Define GDT structs**
+  - **Why:** Zig's `packed struct` is your friend here.
+  - **Study:** `packed struct`, bit layout, endianness on x86.
+  - **What:** Create `src/arch/x86_64/gdt.zig`. Define `Entry` and `Ptr` (the GDTR descriptor).
+  - **Verify:** `@sizeOf(Entry) == 8` and `@sizeOf(Ptr) == 10`.
+  - **Notes:**
 
-#### Study Phase
-- [ ] Study: Zig `std.mem.Allocator` vtable pattern in a freestanding context
+- [ ] **Build a minimal GDT**
+  - **Why:** Limine gives you a working GDT, but it's good practice (and necessary later for the TSS) to install your own.
+  - **What:** Define entries: null, kernel code, kernel data. Place in a global array.
+  - **Verify:** Print each entry's raw bytes via serial; values match Intel docs.
+  - **Notes:**
 
-#### Implementation Phase
-- [ ] Implement `allocFn`, `resizeFn`, and `freeFn` matching the `std.mem.Allocator` interface signatures
-- [ ] Create a global `std.mem.Allocator` instance backed by the heap functions
-- [ ] Test: create a `std.ArrayList(u32)` using the kernel allocator; append 100 items and verify values
-- [ ] Implement heap statistics tracking (peak usage, allocation count)
-- [ ] Add guard pages (unmapped pages at heap boundaries) to catch overflows in debug builds
-- [ ] Add allocation tracking for leak detection in debug builds
+- [ ] **Load the GDT**
+  - **Why:** `lgdt` tells the CPU about your new table. A "far jump" or far return after is required to refresh segment caches.
+  - **Study:** `lgdt` instruction. Why a far jump is needed. How to do a far return in 64-bit mode.
+  - **What:** Write inline assembly to `lgdt`, then reload `CS` via a far return and reload `DS/ES/FS/GS/SS` with the new data selector.
+  - **Verify:** Print `CS` and `DS` selector values before and after. They change to your new selectors.
+  - **Notes:**
 
----
+### 3.2 The Interrupt Descriptor Table (IDT)
 
-## Section 9: Basic Cooperative Multitasking
+- [ ] **Study x86_64 interrupts**
+  - **Why:** Every CPU exception (divide by zero, page fault, etc.) and every hardware interrupt needs an entry in the IDT.
+  - **Study:** IDT entry format (interrupt gate vs trap gate), the IST mechanism, exceptions 0-31 (memorize the important ones: #0 #6 #8 #13 #14).
+  - **What:** Read OSDev Wiki: "Interrupt Descriptor Table" and "Exceptions".
+  - **Verify:** You can list what exceptions 13 (#GP) and 14 (#PF) mean.
+  - **Notes:**
 
-### Chapter 9.1: Task Structure (`src/sched/task.zig`)
+- [ ] **Define IDT structs**
+  - **What:** Create `src/arch/x86_64/idt.zig`. Define `Entry` (16 bytes in long mode) and `Ptr`.
+  - **Verify:** `@sizeOf(Entry) == 16`.
+  - **Notes:**
 
-#### Study Phase
-- [ ] Study: Process vs thread concepts — address space ownership vs execution stream
-- [ ] Study: Thread states — ready, running, blocked, zombie and valid transitions between them
-- [ ] Study: Context save data — only callee-saved registers need saving across a voluntary switch
+- [ ] **Build the interrupt stub generator**
+  - **Why:** Each of the 256 IDT entries needs an assembly stub that saves registers and calls a common Zig handler. Hand-writing 256 stubs is unrealistic; you generate them with macros or `comptime`.
+  - **Study:** Zig `comptime` and inline assembly. The x86_64 SysV ABI for what registers must be saved.
+  - **What:** Define an `InterruptFrame` struct (the layout the CPU pushes + what you push). Write a `comptime` loop that emits a naked stub for each vector. Each stub pushes a dummy error code if the CPU didn't, pushes the vector number, then jumps to a common handler.
+  - **Verify:** `objdump -d` shows 256 distinct stubs.
+  - **Notes:**
 
-#### Implementation Phase
-- [ ] Define `TaskState` enum: `ready`, `running`, `blocked`, `zombie`
-- [ ] Define `CpuContext` struct holding callee-saved registers (`rbx`, `rbp`, `r12`–`r15`, `rsp`, `rip`)
-- [ ] Define `Task` struct: `id: u64`, `context: CpuContext`, `state: TaskState`, `kernel_stack: []u8`, `user_stack: ?[]u8`, `page_table: ?u64`, `next: ?*Task`
-- [ ] Implement an atomic task ID counter
-- [ ] Implement `createTask(entry: fn() noreturn, stack_size: usize) *Task`: allocate stacks via heap, set up initial context
+- [ ] **Write the common handler**
+  - **Why:** This is where Zig takes over. You receive the frame, decide what to do.
+  - **What:** Write a `interruptDispatch(frame: *InterruptFrame)` Zig function. For now, for exceptions 0-31, print the vector, error code, RIP, RSP, RFLAGS, and CR2 (for #PF), then halt.
+  - **Verify:** The function compiles and is exported.
+  - **Notes:**
 
-### Chapter 9.2: Context Switching
+- [ ] **Load the IDT**
+  - **What:** Populate the 256 entries with pointers to your stubs. Call `lidt`.
+  - **Verify:** Print the IDTR via `sidt` after loading. Values match.
+  - **Notes:**
 
-#### Study Phase
-- [ ] Study: Context switch procedure — save callee-saved regs, swap stacks, restore, return
-- [ ] Study: x86_64 callee-saved registers per System V ABI: `rbx`, `rbp`, `r12`–`r15`
-- [ ] Study: Initial task setup — the first return from `contextSwitch` must jump to the entry function
+### 3.3 Test your safety net
 
-#### Implementation Phase
-- [ ] Implement `contextSwitch(old: *CpuContext, new: *CpuContext)` in assembly: save callee-saved regs into `old`, load from `new`, return
-- [ ] Write a `taskEntryWrapper` trampoline: called when a task runs for the first time, calls the entry function, then calls `scheduler.exit()`
-- [ ] Ensure a new task's initial stack frame returns into `taskEntryWrapper`
-- [ ] Implement `createTask`: allocate kernel stack via heap, set `rsp` and `rip` in `CpuContext`
-- [ ] Initialize the first kernel task representing the current execution context
-- [ ] Test: create two tasks that print alternating messages; confirm interleaving via `yield()`
+- [ ] **Trigger a divide-by-zero**
+  - **Why:** Confirms exception delivery works.
+  - **What:** Inline assembly: `xor rdx, rdx; xor rcx, rcx; div rcx`.
+  - **Verify:** Your handler prints "Exception #0: Divide Error" with register dump. No QEMU reboot.
+  - **Notes:**
 
-### Chapter 9.3: Round-Robin Scheduler (`src/sched/scheduler.zig`)
+- [ ] **Trigger a #UD (invalid opcode)**
+  - **What:** Inline assembly: `ud2`.
+  - **Verify:** Handler prints "Exception #6: Invalid Opcode".
+  - **Notes:**
 
-#### Study Phase
-- [ ] Study: Round-robin scheduling — equal time slices, FIFO ready queue
-- [ ] Study: Circular linked list as a ready queue — O(1) enqueue and dequeue
-- [ ] Study: Yield concept — voluntary relinquishing of the CPU
+- [ ] **Trigger a #PF (page fault)**
+  - **What:** Dereference address `0xDEADBEEFDEAD`.
+  - **Verify:** Handler prints "Exception #14: Page Fault" and the faulting address (from CR2) matches.
+  - **Notes:**
 
-#### Implementation Phase
-- [ ] Maintain a circular ready queue of `*Task` pointers
-- [ ] Implement `addTask(task: *Task)`: append to the ready queue
-- [ ] Implement `removeTask(task: *Task)`: unlink from the ready queue
-- [ ] Implement `schedule()`: pick the next ready task, call `contextSwitch`
-- [ ] Implement `yield()`: move current task to back of queue, call `schedule()`
-- [ ] Initialize a kernel idle task (loops calling `yield()`) as the always-ready fallback
-- [ ] Test: confirm multiple cooperating tasks interleave correctly
+### Phase 3 Milestone
 
----
+Any CPU exception now produces a readable crash dump on screen and serial. No more silent reboots.
 
-## Section 10: Preemptive Multitasking
+### Phase 3 Debug Checkpoint
 
-### Chapter 10.1: Timer-Based Preemption
-
-#### Study Phase
-- [ ] Study: Preemptive scheduling — the scheduler runs without task cooperation
-- [ ] Study: Timer interrupt as the preemption trigger — saving the full interrupted context
-- [ ] Study: Time quantum/slice — how long a task runs before forced rescheduling
-
-#### Implementation Phase
-- [ ] Add `quantum_remaining: u32` field to `Task`
-- [ ] In the PIT IRQ0 handler: decrement current task's quantum; call `schedule()` when it reaches zero
-- [ ] Save and restore the full interrupt frame (all GPRs, not just callee-saved) in the timer handler
-- [ ] Reset quantum to a default value (e.g., 10 ticks) each time a task is scheduled
-- [ ] Test: create two CPU-bound tasks with no `yield()` calls; confirm they interleave
-
-### Chapter 10.2: Advanced Scheduler
-
-#### Study Phase
-- [ ] Study: Priority-based scheduling — multiple ready queues, one per priority level
-- [ ] Study: Sleeping tasks and timer-driven wakeup — sleep queue sorted by wakeup tick
-- [ ] Study: Task termination — zombie state, resource reclamation, parent notification
-
-#### Implementation Phase
-- [ ] Add `priority: u8` field to `Task`; maintain separate ready queues per priority level
-- [ ] Implement `sleep(ticks: u64)`: block the current task, record wakeup tick, move to sleep queue
-- [ ] In the timer handler: scan sleep queue and move tasks whose wakeup tick has passed to the ready queue
-- [ ] Implement `exit()`: set task state to `zombie`, call `schedule()`
-- [ ] Implement zombie reaping: free kernel stack memory of exited tasks
-- [ ] Test: verify priority scheduling prefers higher-priority tasks; verify `sleep()` wakes correctly
+- [ ] In QEMU monitor, run `info registers` after a crash. Confirm RIP matches your dump.
+- [ ] Use `-d int,cpu_reset` in QEMU to see the *emulator's* view of exceptions. Compare to your handler's view.
+- [ ] Write a deliberately bad program that hits 3-4 different exceptions in sequence; verify each is caught.
+- [ ] Write up: "Walk through one interrupt from CPU detection to your Zig dispatcher."
 
 ---
 
-## Section 11: Userspace Infrastructure
+## Phase 4 — Hardware Interrupts: Timer, Keyboard, and Time Itself
 
-### Chapter 11.1: Ring 3 Transition
+**Goal of this phase:** Your kernel can react to the outside world. You can type. Time passes.
 
-#### Study Phase
-- [ ] Study: CPU privilege rings — Ring 0 (kernel) vs Ring 3 (user) and enforcement
-- [ ] Study: TSS `RSP0` field — the kernel stack pointer used on Ring 3 → Ring 0 transitions
-- [ ] Study: `iretq` instruction — the mechanism for transitioning to a lower privilege level
-- [ ] Study: User stack setup — separate stack in user-accessible memory
+### 4.1 The legacy PIC (start here, then upgrade)
 
-#### Implementation Phase
-- [ ] Ensure `TSS.rsp0` is updated to the current task's kernel stack top on every context switch
-- [ ] Allocate and map a user stack page (user-accessible, RW) in the task's page table
-- [ ] Implement `jumpToUserMode(entry: u64, user_stack_top: u64)`: build the `iretq` frame on the kernel stack (`rip`, `USER_CS`, `rflags=0x202`, `rsp`, `USER_DS`), execute `iretq`
-- [ ] Test: transition to Ring 3 with a minimal test function that calls a syscall and returns
+- [ ] **Study the 8259 PIC**
+  - **Why:** The PIC routes hardware IRQs (timer, keyboard, etc.) to the CPU. Real systems use the APIC, but the PIC is simpler — start here, switch to APIC in Phase 4.4.
+  - **Study:** PIC initialization (the 4 ICW bytes). IRQ-to-vector mapping. Why default vectors conflict with CPU exceptions.
+  - **What:** Read OSDev Wiki: "8259 PIC".
+  - **Verify:** You can list which IRQ goes to which device (IRQ0 = PIT, IRQ1 = keyboard).
+  - **Notes:**
 
-### Chapter 11.2: Loading User Programs
+- [ ] **Remap the PIC**
+  - **Why:** Default IRQ vectors (8-15) collide with CPU exceptions. Move them to 32-47.
+  - **What:** Send ICW1-4 to ports `0x20/0x21` (master) and `0xA0/0xA1` (slave). Mask all IRQs initially.
+  - **Verify:** Print PIC mask registers — all bits set (all masked).
+  - **Notes:**
 
-#### Study Phase
-- [ ] Study: ELF64 file format — header, program headers, section headers
-- [ ] Study: `PT_LOAD` program headers — `vaddr`, `filesz`, `memsz`, `flags` fields
-- [ ] Study: User virtual address space layout — conventional base addresses (e.g., `0x400000`)
+- [ ] **Wire IRQ handlers into the IDT**
+  - **What:** For vectors 32-47, install handlers that call your dispatcher and then send EOI to the PIC.
+  - **Verify:** Code path compiles; no IRQs unmasked yet.
+  - **Notes:**
 
-#### Implementation Phase
-- [ ] Define `Elf64Header` and `Elf64Phdr` as `packed struct` types matching the ELF64 spec
-- [ ] Implement `loadElf(data: []const u8, page_table: *PageTable) !u64`:
-  - Verify ELF magic (`\x7FELF`), class (64-bit), and machine (x86_64)
-  - Parse and iterate `PT_LOAD` program headers
-  - Allocate physical frames and map each segment with correct flags (R/W/X, user-accessible)
-  - Copy `filesz` bytes from ELF data; zero the remaining `memsz - filesz` bytes (BSS)
-  - Return the ELF entry point address
-- [ ] Implement `setupUserStack(page_table, size) u64`: allocate and map a user stack, return top address
-- [ ] Test: load a hand-crafted minimal ELF; verify it executes in Ring 3
+### 4.2 The PIT (your first ticking clock)
 
----
+- [ ] **Study the 8253/8254 PIT**
+  - **Why:** The PIT is the simplest way to get a periodic timer. Configure once, fires forever.
+  - **Study:** PIT modes (especially mode 2 and mode 3), how to compute the divisor for a target frequency.
+  - **What:** Read OSDev Wiki: "Programmable Interval Timer".
+  - **Verify:** You can compute the divisor for 100 Hz (~11932).
+  - **Notes:**
 
-## Section 12: System Calls
+- [ ] **Configure the PIT for 100 Hz**
+  - **Why:** Start slow. 1000 Hz can be too fast for early debugging.
+  - **What:** Write to PIT ports (`0x40-0x43`) to set mode 3 at 100 Hz.
+  - **Verify:** Code runs without faulting.
+  - **Notes:**
 
-### Chapter 12.1: SYSCALL/SYSRET Mechanism (`src/syscall/syscall.zig`)
+- [ ] **Install a PIT handler**
+  - **What:** On IRQ0, increment a `ticks` counter. Log `ticks` every 100 ticks.
+  - **Verify:** Unmask IRQ0 on the PIC. Enable interrupts (`sti`). You see "ticks: 100" once per second on serial.
+  - **Notes:**
 
-#### Study Phase
-- [ ] Study: `syscall`/`sysret` instructions — fast path vs `int 0x80` / `iretq`
-- [ ] Study: MSR setup — `IA32_STAR` (selectors), `IA32_LSTAR` (entry point), `IA32_FMASK` (RFLAGS mask)
-- [ ] Study: Syscall argument passing convention — `rax` (number), `rdi`, `rsi`, `rdx`, `r10`, `r8`, `r9`
-- [ ] Study: System call numbering conventions (Linux ABI as reference)
+### 4.3 The keyboard
 
-#### Implementation Phase
-- [ ] Implement `writeMsr(msr: u32, value: u64)` and `readMsr(msr: u32) u64` via inline assembly
-- [ ] Set `IA32_STAR`: encode kernel CS/SS and user CS/SS selectors
-- [ ] Set `IA32_LSTAR`: point to the assembly syscall entry handler
-- [ ] Set `IA32_FMASK`: mask `RFLAGS.IF` on syscall entry
-- [ ] Enable `syscall`/`sysret` by setting bit 0 of `IA32_EFER`
-- [ ] Write `syscallEntry` in assembly: save all user registers, swap to kernel stack, call Zig dispatcher, restore user registers, `sysretq`
-- [ ] Implement `syscallDispatch(frame: *SyscallFrame) u64`: dispatch on `rax` to handler functions
-- [ ] Test: write a Ring 3 function that executes `syscall` with a known number; verify dispatch fires
+- [ ] **Study the PS/2 keyboard**
+  - **Why:** QEMU emulates a PS/2 keyboard regardless of your host. Scancodes come in via port `0x60`.
+  - **Study:** PS/2 controller, scancode set 1 vs 2, make/break codes.
+  - **What:** Read OSDev Wiki: "PS/2 Keyboard".
+  - **Verify:** You can describe what happens when you press and release the `A` key.
+  - **Notes:**
 
-### Chapter 12.2: System Call Interface
+- [ ] **Install a keyboard handler**
+  - **What:** On IRQ1, read port `0x60`, log the raw scancode.
+  - **Verify:** Type in QEMU — raw scancodes log to serial.
+  - **Notes:**
 
-#### Study Phase
-- [ ] Study: POSIX system call conventions — return value in `rax`, negative errno on error
-- [ ] Study: Common system calls — `exit`, `write`, `read`, `open`, `close`, `yield`, `sleep`
+- [ ] **Build a scancode-to-ASCII map**
+  - **What:** Create a lookup table for scancode set 1, lowercase only.
+  - **Verify:** Pressing keys prints letters to the console.
+  - **Notes:**
 
-#### Implementation Phase
-- [ ] Define a `Syscall` enum: `sys_read=0`, `sys_write=1`, `sys_exit=60`, `sys_getpid=39`, `sys_yield=24`, `sys_sleep=35`, `sys_open=2`, `sys_close=3`
-- [ ] Implement `sys_exit(code: u64) noreturn`: mark task zombie, call `scheduler.schedule()`
-- [ ] Implement `sys_write(fd, buf_ptr, len) i64`: validate user pointer, write bytes to VGA and serial
-- [ ] Implement `sys_read(fd, buf_ptr, len) i64`: block on keyboard buffer, copy bytes to user buffer
-- [ ] Implement `sys_getpid() u64`: return current task ID
-- [ ] Implement `sys_yield() i64`: call `scheduler.yield()`
-- [ ] Implement `sys_sleep(ms: u64) i64`: call `scheduler.sleep()`
-- [ ] Write syscall wrapper functions in `userland/` using `asm volatile ("syscall")`
-- [ ] Test: Ring 3 program calls `sys_write`, confirms output on screen, then calls `sys_exit`
+- [ ] **Add modifier state**
+  - **What:** Track shift, ctrl, alt press/release. Handle uppercase, basic symbols.
+  - **Verify:** Shift+A produces `A`, not `a`.
+  - **Notes:**
 
----
+- [ ] **Build a keyboard event ring buffer**
+  - **Why:** You don't want your IRQ handler doing heavy work. It posts events to a buffer; consumers drain it later.
+  - **What:** Implement a fixed-size circular buffer of `KeyEvent`. IRQ enqueues; a `pollKey()` API dequeues.
+  - **Verify:** Buffer doesn't drop keys under fast typing.
+  - **Notes:**
 
-## Section 13: Initial RAM Disk (initrd)
+### 4.4 Upgrade: LAPIC and IOAPIC
 
-### Chapter 13.1: TAR-Based initrd
+> Don't skip this. Multitasking, SMP, and modern timers all require the APIC.
 
-#### Study Phase
-- [ ] Study: Ramdisk concept — filesystem image loaded into RAM by the bootloader
-- [ ] Study: USTAR TAR format — 512-byte header block layout, filename, size, checksum fields
-- [ ] Study: Limine module request — how to load a binary blob alongside the kernel
+- [ ] **Study the LAPIC and IOAPIC**
+  - **Why:** PIC is single-CPU and legacy. APIC is per-CPU and is what real systems use.
+  - **Study:** LAPIC registers, IOAPIC redirection entries, MSI basics, the role of ACPI in finding them.
+  - **What:** Read OSDev Wiki: "APIC".
+  - **Verify:** You can explain the difference between LAPIC and IOAPIC.
+  - **Notes:**
 
-#### Implementation Phase
-- [ ] Add Limine module request to `_start`; parse the module tag to get start/end physical addresses
-- [ ] Add a `build.zig` step that packs `initrd_root/` into `initrd.tar` using `tar`
-- [ ] Copy `initrd.tar` to the ISO; add `module` line to `limine.conf`
-- [ ] Define `UstarHeader` as a `packed struct` matching the 512-byte USTAR block layout
-- [ ] Implement `init(mod_start, mod_end)`: store the module address range
-- [ ] Implement `listFiles()`: iterate 512-byte blocks, print filenames and sizes to serial
-- [ ] Implement `findFile(name: []const u8) ?[]const u8`: return a slice pointing to the file's data
-- [ ] Implement `mount()`: register the initrd as the root filesystem
-- [ ] Test: call `listFiles()` at boot; confirm files from `initrd_root/` appear in serial output
+- [ ] **Find the LAPIC base**
+  - **Why:** ACPI's MADT table tells you where the LAPIC and IOAPICs are mapped.
+  - **Study:** ACPI RSDP/XSDT/MADT tables. (Limine provides the RSDP address.)
+  - **What:** Walk ACPI tables, find MADT, parse LAPIC and IOAPIC entries.
+  - **Verify:** Log the LAPIC base address.
+  - **Notes:**
 
-### Chapter 13.2: Simple Filesystem Interface (`src/fs/vfs.zig`)
+- [ ] **Disable the PIC, enable the LAPIC**
+  - **What:** Mask all IRQs on both PICs. Enable LAPIC via its spurious interrupt vector register.
+  - **Verify:** PIT interrupts stop (until you redirect via IOAPIC).
+  - **Notes:**
 
-#### Study Phase
-- [ ] Study: VFS abstraction — a uniform interface over heterogeneous filesystems
-- [ ] Study: Inode and file descriptor abstractions — separating identity from open state
+- [ ] **Route keyboard IRQ through the IOAPIC**
+  - **What:** Program the IOAPIC redirection entry for IRQ1 → vector 33 → your LAPIC.
+  - **Verify:** Typing works again, now via APIC.
+  - **Notes:**
 
-#### Implementation Phase
-- [ ] Define a `FileOps` struct of function pointers: `open`, `read`, `write`, `seek`, `close`
-- [ ] Define an `Inode` struct: `name: [256]u8`, `size: u64`, `data: ?[*]const u8`, `ops: *const FileOps`
-- [ ] Define a `FileDescriptor` struct: `inode: *Inode`, `position: u64`
-- [ ] Define a per-process `FdTable` (fixed array of `?FileDescriptor`)
-- [ ] Implement `vfsOpen(path: []const u8) !u32`: look up inode, allocate fd, return fd number
-- [ ] Implement `vfsRead(fd: u32, buf: []u8) !usize`: call inode's `read` op, advance position
-- [ ] Implement `vfsClose(fd: u32)`: release the fd table entry
-- [ ] Register initrd as the root filesystem implementation
-- [ ] Wire `sys_open`, `sys_read`, and `sys_close` syscalls to the VFS layer
-- [ ] Test: Ring 3 program opens a file from the initrd, reads it, and prints it via `sys_write`
+- [ ] **Set up the LAPIC timer**
+  - **Why:** Replaces the PIT for scheduling. Per-CPU, much higher resolution.
+  - **Study:** LAPIC timer modes (one-shot, periodic, TSC-deadline). Calibrating against the PIT or HPET.
+  - **What:** Calibrate the LAPIC timer using the PIT for a known interval, then set it to periodic mode at 1000 Hz.
+  - **Verify:** Your `ticks` counter now advances via the LAPIC timer.
+  - **Notes:**
 
----
+### Phase 4 Milestone
 
-## Section 14: FAT32 Filesystem
+Your kernel is "alive" — time passes, keys are received, and you've upgraded from legacy PIC to APIC. You can type at a prompt.
 
-### Chapter 14.1: FAT32 Structures
+### Phase 4 Debug Checkpoint
 
-#### Study Phase
-- [ ] Study: FAT32 on-disk layout — BPB, reserved sectors, FAT region, data region
-- [ ] Study: Boot sector and BIOS Parameter Block (BPB) — cluster size, FAT count, root cluster
-- [ ] Study: FAT table structure — 32-bit cluster chain entries, EOC marker
-- [ ] Study: Short directory entries (8.3 format) — attribute, first cluster, file size fields
-- [ ] Study: Long File Name (LFN) directory entries — encoding and ordering
-
-#### Implementation Phase
-- [ ] Define `Fat32Bpb`, `Fat32BootSector`, `Fat32DirEntry`, and `Fat32LfnEntry` as `packed struct` types
-- [ ] Implement `parseBpb(sector_data: []const u8)`: extract cluster size, FAT offset, data offset
-- [ ] Implement `readFatEntry(cluster: u32) u32`: look up the next cluster in the FAT
-- [ ] Implement `followClusterChain(first_cluster: u32, callback: fn(u32))`: iterate a cluster chain
-- [ ] Implement `parseDirEntries(cluster: u32)`: iterate and yield directory entries
-- [ ] Implement `parseLfnName(entries: []Fat32LfnEntry, buf: []u8) []u8`: reconstruct long filename
-
-### Chapter 14.2: FAT32 Operations
-
-#### Study Phase
-- [ ] Study: FAT32 read path — cluster chain → sector calculation → block read
-- [ ] Study: FAT32 write path — find free cluster, update FAT, write data, update directory
-- [ ] Study: Free cluster management — `FSInfo` sector and free cluster hint
-
-#### Implementation Phase
-- [ ] Implement `readFile(path: []const u8, buf: []u8) !usize`
-- [ ] Implement `listDirectory(path: []const u8)`: print names and sizes to serial
-- [ ] Implement `navigatePath(path: []const u8) ?u32`: resolve a path to a starting cluster
-- [ ] Implement `writeFile(path: []const u8, data: []const u8) !void`
-- [ ] Implement `createFile(dir_cluster: u32, name: []const u8) !u32`
-- [ ] Implement `deleteFile(path: []const u8) !void`
-- [ ] Implement `allocCluster() !u32`: find a free cluster in the FAT, mark it EOC
-- [ ] Implement `freeClusterChain(first_cluster: u32)`: mark all clusters in chain as free
-- [ ] Test: mount a FAT32 disk image in QEMU; read and write files end-to-end
+- [ ] Add a `uptime` log line printed every 5 seconds. Confirm steady cadence.
+- [ ] Print every IRQ as it fires (toggle with a flag for noise control).
+- [ ] Use QEMU's `-d int` to compare interrupt deliveries against your logs.
+- [ ] Write up: "The path of one keystroke: from QEMU's PS/2 model to my ring buffer."
 
 ---
 
-## Section 15: Virtual File System (VFS) Layer
+## Phase 5 — Physical Memory: Counting the RAM
 
-### Chapter 15.1: VFS Architecture
+**Goal of this phase:** Know what RAM exists, what's safe to touch, and be able to hand out 4 KiB physical frames on demand.
 
-#### Study Phase
-- [ ] Study: Full VFS abstraction — superblock, inode, dentry, and file object layers
-- [ ] Study: Mount points — associating a filesystem instance with a path in the namespace
-- [ ] Study: Path resolution — iterative directory lookup, handling `.` and `..`
+### 5.1 Read the memory map
 
-#### Implementation Phase
-- [ ] Define `VfsOps` interface (function pointer struct): `mount`, `unmount`, `lookup`, `open`, `read`, `write`, `close`
-- [ ] Define `Superblock` struct: `ops: *VfsOps`, `root_inode: *Inode`, `private_data: *anyopaque`
-- [ ] Define `Mount` struct: `path: []const u8`, `sb: *Superblock`, `next: ?*Mount`
-- [ ] Implement `mount(path, sb)`: insert into the global mount list
-- [ ] Implement `unmount(path)`: remove from the mount list, flush pending writes
-- [ ] Implement `resolvePath(path: []const u8) !*Inode`: walk the mount table, iterate directory entries
+- [ ] **Study how the bootloader describes memory**
+  - **Why:** RAM is full of forbidden regions: firmware reserved, ACPI, MMIO. You can only use "usable" entries.
+  - **Study:** Limine's memory map entry types. The difference between physical addresses, virtual addresses, and Limine's HHDM offset.
+  - **What:** Read OSDev Wiki: "Detecting Memory" and Limine's memory map protocol.
+  - **Verify:** You can list all entry types.
+  - **Notes:**
 
-### Chapter 15.2: VFS File Operations
+- [ ] **Print the memory map**
+  - **What:** Add a memory map request to your Limine setup. Loop and log every entry.
+  - **Verify:** Output includes regions like `[0x100000-0x7FE0000] Usable` totaling close to your QEMU `-m` setting.
+  - **Notes:**
 
-#### Study Phase
-- [ ] Study: VFS file operations abstraction — uniform `read`/`write`/`seek` over any filesystem
-- [ ] Study: File position tracking — per-fd offset, `lseek` semantics
-- [ ] Study: Page cache / buffer cache basics — avoiding redundant disk reads
+- [ ] **Compute total usable RAM**
+  - **What:** Sum the sizes of all `Usable` entries.
+  - **Verify:** Matches QEMU's configured memory (minus reserved overhead).
+  - **Notes:**
 
-#### Implementation Phase
-- [ ] Implement generic `vfsOpen`, `vfsRead`, `vfsWrite`, `vfsSeek`, `vfsClose` dispatching through `VfsOps`
-- [ ] Integrate initrd with VFS (register as a `Superblock` at `/`)
-- [ ] Integrate FAT32 with VFS (register as a `Superblock` at `/mnt`)
-- [ ] Test: open the same logical path through VFS regardless of which filesystem backs it
+### 5.2 The bitmap frame allocator
 
----
+- [ ] **Study bitmap allocators**
+  - **Why:** Simplest possible allocator. One bit per 4 KiB frame: 0 = free, 1 = used. Slow but easy and visible.
+  - **Study:** OSDev Wiki: "Page Frame Allocation".
+  - **Verify:** You can compute the bitmap size for 4 GiB of RAM (128 KiB).
+  - **Notes:**
 
-## Section 16: Storage Drivers
+- [ ] **Locate space for the bitmap**
+  - **Why:** Bootstrap problem: you need memory to manage memory.
+  - **What:** Find the largest `Usable` region. Place the bitmap at its start. Mark those frames as used in the bitmap itself.
+  - **Verify:** Log the bitmap's physical address and size.
+  - **Notes:**
 
-### Chapter 16.1: ATA PIO Driver (`src/drivers/ata.zig`)
+- [ ] **Mark every region's status**
+  - **What:** Loop the memory map again. For every non-usable byte and your bitmap region, set bits to 1.
+  - **Verify:** Print bitmap statistics — count free vs used. Free roughly equals total usable RAM in frames.
+  - **Notes:**
 
-#### Study Phase
-- [ ] Study: ATA/IDE interface — primary channel ports (`0x1F0`–`0x1F7`, `0x3F6`)
-- [ ] Study: Programmed I/O (PIO) mode — CPU-driven data transfer, 16-bit words
-- [ ] Study: ATA commands — `IDENTIFY` (0xEC), `READ SECTORS` (0x20), `WRITE SECTORS` (0x30)
-- [ ] Study: LBA28 addressing (28-bit sector address) and LBA48 (48-bit, for large disks)
+- [ ] **Implement `allocFrame`**
+  - **What:** Scan for the first 0 bit, set it, return `bit_index * 4096`.
+  - **Verify:** Call `allocFrame()` 10 times. Returned addresses are increasing by 4096.
+  - **Notes:**
 
-#### Implementation Phase
-- [ ] Define ATA primary/secondary channel port constants
-- [ ] Implement `waitReady()`: poll `BSY` bit in the status register
-- [ ] Implement `identify() !DriveInfo`: send `IDENTIFY`, read 256 words, extract geometry
-- [ ] Implement `readSectors(lba: u64, count: u16, buf: []u16) !void` using LBA28
-- [ ] Implement `writeSectors(lba: u64, count: u16, buf: []const u16) !void` using LBA28
-- [ ] Test: read sector 0 and print the first 16 bytes to serial
+- [ ] **Implement `freeFrame`**
+  - **What:** Take a physical address, compute bit index, clear bit.
+  - **Verify:** Alloc → free → alloc returns the same address.
+  - **Notes:**
 
-### Chapter 16.2: Block Device Layer
+- [ ] **Stress test**
+  - **What:** Alloc until exhaustion, then free all, then alloc again.
+  - **Verify:** Counts match before and after. No corruption.
+  - **Notes:**
 
-#### Study Phase
-- [ ] Study: Block device abstraction — uniform sector read/write interface over different hardware
-- [ ] Study: Device registration and lookup by device ID
+### Phase 5 Milestone
 
-#### Implementation Phase
-- [ ] Define `BlockDeviceOps` interface: `read_sectors`, `write_sectors`, `get_sector_count`
-- [ ] Define `BlockDevice` struct: `ops: *BlockDeviceOps`, `sector_size: u32`, `private: *anyopaque`
-- [ ] Implement `registerDevice(dev: *BlockDevice) u32`: add to global device table, return device ID
-- [ ] Implement `blockRead(dev_id, lba, count, buf)` and `blockWrite(dev_id, lba, count, buf)` wrappers
-- [ ] Connect the ATA driver to the block device layer
-- [ ] Connect FAT32 to use the block device layer for sector I/O
-- [ ] Test: read a FAT32 filesystem from an ATA disk image attached to QEMU
+You can allocate and free physical 4 KiB frames. You know exactly how much RAM is usable and how much is currently in use.
 
----
+### Phase 5 Debug Checkpoint
 
-## Section 17: Advanced Features
-
-### Chapter 17.1: Symmetric Multiprocessing (SMP)
-
-#### Study Phase
-- [ ] Study: APIC/LAPIC architecture — per-CPU interrupt controller, replacing the 8259A
-- [ ] Study: SMP boot protocol — BSP sends INIT/SIPI to wake Application Processors
-- [ ] Study: Per-CPU data structures — separate stacks, GDT, TSS, and scheduler state per core
-
-#### Implementation Phase
-- [ ] Parse the ACPI MADT table to discover LAPIC and IOAPIC entries
-- [ ] Implement LAPIC initialization (enable, set spurious vector, configure timer)
-- [ ] Implement IOAPIC initialization (map external IRQs to LAPIC vectors)
-- [ ] Add Limine SMP request; iterate Limine-provided CPU entries
-- [ ] Write AP startup code: initialize GDT, IDT, and per-CPU scheduler state on each AP
-- [ ] Allocate per-CPU kernel stacks and update TSS for each core
-- [ ] Implement `SpinLock` using `@atomicRmw` for SMP-safe critical sections
-- [ ] Test: print a per-core boot message from each AP to serial
-
-### Chapter 17.2: Basic Networking
-
-#### Study Phase
-- [ ] Study: Network stack layers — link (Ethernet), network (IP), transport (UDP/TCP)
-- [ ] Study: Ethernet frame format — preamble, MAC addresses, EtherType, payload, FCS
-- [ ] Study: IPv4 packet format — header fields, checksum, fragmentation
-- [ ] Study: ARP protocol — request/reply, cache maintenance
-
-#### Implementation Phase
-- [ ] Implement a NIC driver (e.g., RTL8139 or `virtio-net` for QEMU)
-- [ ] Implement Ethernet frame send/receive
-- [ ] Implement an ARP cache: `lookupMac(ip) ?[6]u8`, update on received ARP replies
-- [ ] Implement IPv4 packet parsing and forwarding to upper-layer handlers
-- [ ] Implement ICMP echo reply (respond to ping)
-- [ ] Test: ping the kernel from the host via QEMU user networking
-
-### Chapter 17.3: Userspace C Library (`userland/libc/`)
-
-#### Study Phase
-- [ ] Study: C standard library components required for basic programs
-- [ ] Study: System call wrapper conventions for the C ABI
-
-#### Implementation Phase
-- [ ] Implement string functions: `strlen`, `strcpy`, `strcmp`, `memcpy`, `memset`, `memmove`
-- [ ] Implement syscall wrappers matching the Linux x86_64 ABI: `write`, `read`, `exit`, `open`, `close`
-- [ ] Implement `printf` (subset: `%s`, `%d`, `%x`, `%c`) backed by `sys_write`
-- [ ] Implement `malloc` / `free` backed by a `sys_brk`-like heap expansion syscall
-- [ ] Compile user programs linking against this custom libc
-- [ ] Test: a C-style user program calls `printf("Hello from libc!\n")` and exits cleanly
+- [ ] Add a `pmem` debug command (via your keyboard input) that prints allocator stats.
+- [ ] In GDB, examine the bitmap memory directly with `x/256xb`. Confirm bits match what you logged.
+- [ ] Write up: "What goes wrong if I forget to mark MMIO regions as used?"
 
 ---
 
-## Appendix: Testing and Debugging Infrastructure
+## Phase 6 — Virtual Memory: Building Your Address Space
 
-### Automated Testing
-- [ ] Add a `test` build step to `build.zig` that boots QEMU non-interactively and checks serial output
-- [ ] Implement `assert(condition: bool, msg: []const u8)` using `@panic` with `@src()` location
-- [ ] Write unit tests for the PMM (alloc/free/double-free detection)
-- [ ] Write unit tests for the VMM (map/unmap/TLB flush)
-- [ ] Write unit tests for the TAR parser (list/find on a known archive)
-- [ ] Write an integration test: boot kernel, confirm shell prompt appears in serial output within 5 seconds
+**Goal of this phase:** Control the page tables. Map and unmap virtual addresses at will. Survive page faults gracefully.
 
-### Debugging Tools
-- [ ] Extend `kernel.gdb` with helpers: `print-pml4`, `print-task-list`, `print-heap`, `print-idt`
-- [ ] Implement `dumpMemory(addr: u64, len: usize)`: print a hex+ASCII dump to serial
-- [ ] Add compile-time log level filtering (`DEBUG` logs everything; `ReleaseSafe` logs `WARN`+)
-- [ ] Add `@src()` file and line number to all panic messages
-- [ ] Implement a basic kernel debugger: breakpoint on `Ctrl+Alt+D`, print task list and register state
+### 6.1 Understand x86_64 paging
 
-### Documentation
-- [ ] Document kernel architecture and subsystem initialization order
-- [ ] Create API documentation for each public module interface
-- [ ] Write a developer guide covering the build system, debug workflow, and adding new syscalls
-- [ ] Document the build process end-to-end (dependencies → ISO → QEMU)
-- [ ] Create a troubleshooting guide for common failures (triple fault, black screen, GPF on boot)
+- [ ] **Study 4-level paging**
+  - **Why:** Every memory access goes through the page tables. You must own them.
+  - **Study:** PML4 → PDPT → PD → PT structure. PTE flags (P, R/W, U/S, PWT, PCD, A, D, PS, G, NX). The role of CR3.
+  - **What:** Read Intel SDM Vol 3, Chapter 4. Read OSDev Wiki: "Paging".
+  - **Verify:** You can decompose a virtual address into its 4 indices + offset on paper.
+  - **Notes:**
+
+- [ ] **Study the higher-half kernel mapping**
+  - **Why:** Limine maps your kernel into the upper half (`0xFFFFFFFF80000000+`) and provides a "higher half direct map" (HHDM) of all physical memory.
+  - **Study:** Limine HHDM. Canonical addresses. Why kernels live in the upper half.
+  - **Verify:** You can convert a physical address to its HHDM virtual address.
+  - **Notes:**
+
+### 6.2 Inspect existing tables
+
+- [ ] **Read CR3**
+  - **Why:** Find Limine's page tables before replacing them.
+  - **What:** Use inline assembly: `mov rax, cr3`.
+  - **Verify:** Log the value. It's a physical address aligned to 4096.
+  - **Notes:**
+
+- [ ] **Walk Limine's tables**
+  - **Why:** Understanding what's already there before you change anything.
+  - **What:** Write a `walk(vaddr)` function that returns the PTE for any virtual address, traversing through HHDM.
+  - **Verify:** `walk(kernel_text_start)` returns a PTE with P=1 and the physical address matching where the bootloader loaded you.
+  - **Notes:**
+
+### 6.3 Build your own page tables
+
+- [ ] **Define PTE structs**
+  - **What:** A `packed struct(u64)` for PTEs with named bitfields.
+  - **Verify:** `@sizeOf(PTE) == 8`.
+  - **Notes:**
+
+- [ ] **Implement `mapPage`**
+  - **What:** Given a virtual address, physical address, and flags: walk the tables, calling `allocFrame()` to create missing levels. Set the final PTE.
+  - **Verify:** Map a fresh frame at a high address; write to it; read back the value.
+  - **Notes:**
+
+- [ ] **Implement `unmapPage`**
+  - **What:** Walk to the PTE, clear it, invalidate the TLB entry (`invlpg`).
+  - **Study:** TLB (Translation Lookaside Buffer). Why `invlpg` is required after unmap.
+  - **Verify:** After unmap, accessing the address triggers a #PF.
+  - **Notes:**
+
+- [ ] **Build your own PML4 and switch to it**
+  - **Why:** You should own the address space, not Limine.
+  - **What:** Allocate a new PML4. Copy Limine's higher-half entries (so kernel + HHDM still work). Load it into CR3.
+  - **Verify:** Print "still alive" *after* loading CR3. If it works, your kernel is now running on its own page tables.
+  - **Notes:**
+
+### 6.4 Page fault handler upgrade
+
+- [ ] **Read CR2 in #PF**
+  - **Why:** CR2 holds the faulting virtual address — essential for debugging.
+  - **What:** In your #PF handler, read CR2 and decode the error code (P, W/R, U/S, RSVD, I/D bits).
+  - **Verify:** Trigger a fault by reading address `0x1`. Handler prints: "Page Fault at 0x1, present=0, write=0, user=0".
+  - **Notes:**
+
+### Phase 6 Milestone
+
+You own your address space. You can map and unmap pages anywhere you want. Page faults give you actionable information.
+
+### Phase 6 Debug Checkpoint
+
+- [ ] Write a `vmem dump <vaddr>` command that prints the full walk of a virtual address.
+- [ ] In QEMU monitor: `info tlb`, `info mem`. Compare to your own dumps.
+- [ ] Map the same physical frame at two different virtual addresses; write through one, read through the other.
+- [ ] Write up: "The full journey of `mov rax, [0xFFFFFFFF80001000]` through my page tables."
+
+---
+
+## Phase 7 — The Kernel Heap: `malloc` and `free`
+
+**Goal of this phase:** Use `std.ArrayList`, hash maps, and other Zig data structures in kernel code.
+
+### 7.1 Choose and study an allocator
+
+- [ ] **Study allocator strategies**
+  - **Why:** Bump, freelist, buddy, slab — each has tradeoffs. Start with freelist (linked-list of free blocks).
+  - **Study:** OSDev Wiki: "Memory Allocation". Linked-list allocators.
+  - **Verify:** You can describe how splitting and coalescing work.
+  - **Notes:**
+
+- [ ] **Reserve heap virtual address range**
+  - **What:** Pick a range in the higher half (e.g., `0xFFFF_8800_0000_0000` to `0xFFFF_8900_0000_0000`).
+  - **Verify:** Range doesn't overlap kernel or HHDM.
+  - **Notes:**
+
+### 7.2 Implement the allocator
+
+- [ ] **Start with a bump allocator**
+  - **Why:** Simpler than freelist. Get something working first.
+  - **What:** Maintain a `next_free_vaddr` pointer. Each alloc maps pages on demand and returns the current pointer.
+  - **Verify:** Alloc 1000 small objects in a loop. No crash.
+  - **Notes:**
+
+- [ ] **Wire into `std.mem.Allocator`**
+  - **Why:** Lets you use Zig's standard data structures.
+  - **Study:** The `std.mem.Allocator` vtable (`alloc`, `resize`, `free`, `remap`).
+  - **What:** Wrap your bump allocator. Expose a global `kernel_allocator`.
+  - **Verify:** `var list = std.ArrayList(u32).init(kernel_allocator);` then `try list.append(42);` works.
+  - **Notes:**
+
+- [ ] **Upgrade to a freelist allocator**
+  - **What:** Maintain a list of free blocks with headers. Alloc finds a fit, splits if too big. Free coalesces adjacent blocks.
+  - **Verify:** Many small allocs + frees in random order — no leak, no fragmentation collapse.
+  - **Notes:**
+
+- [ ] **Implement heap expansion**
+  - **What:** When the freelist can't satisfy a request, map more physical frames at the end of the heap.
+  - **Verify:** Allocate something bigger than your initial heap. It succeeds.
+  - **Notes:**
+
+### Phase 7 Milestone
+
+`std.ArrayList`, `std.AutoHashMap`, and other Zig data structures work in your kernel.
+
+### Phase 7 Debug Checkpoint
+
+- [ ] Add a `heap stats` command: total mapped, total in use, freelist length, fragmentation %.
+- [ ] Write a small test suite that does adversarial alloc patterns; run it on every boot in debug builds.
+- [ ] Write up: "Why is heap fragmentation harder to detect than physical frame leaks?"
+
+---
+
+## Phase 8 — Multitasking: From One Thread to Many
+
+**Goal of this phase:** Two kernel tasks run concurrently. Then ten. Then preemptively. Then with sleep.
+
+### 8.1 Cooperative tasks
+
+- [ ] **Define the Task struct**
+  - **Why:** Each task needs its own stack, register state, ID, and a list link.
+  - **Study:** Callee-saved vs caller-saved registers in SysV x86_64 ABI. What "context" means in a context switch.
+  - **What:** Define `Task { id, state, kernel_stack, rsp, next }`.
+  - **Verify:** Compiles. `@sizeOf(Task)` is reasonable.
+  - **Notes:**
+
+- [ ] **Write `contextSwitch(old: **Task, new: *Task)`**
+  - **Why:** Save old task's callee-saved regs to its stack, save its RSP, load new RSP, restore new task's callee-saved regs, return.
+  - **What:** Write this in naked assembly. Only callee-saved registers (RBX, RBP, R12-R15) need pushing.
+  - **Verify:** Inspect disassembly — exactly the pushes/pops you expect.
+  - **Notes:**
+
+- [ ] **Bootstrap a new task's stack**
+  - **Why:** A brand-new task has nothing on its stack. You must hand-craft the initial frame so the first `contextSwitch` lands at the task's entry function.
+  - **What:** Write `taskCreate(entry_fn)`: allocate a stack, push fake register values + entry address, save RSP in the Task struct.
+  - **Verify:** Create two tasks that each call `log.info("hello from task N")` in a loop.
+  - **Notes:**
+
+- [ ] **Implement cooperative `yield()`**
+  - **What:** Move current task to the back of the ready queue; pick the next task; context switch.
+  - **Verify:** Both tasks alternate output. Counter values match expected sequence.
+  - **Notes:**
+
+### 8.2 Preemptive scheduling
+
+- [ ] **Hook the LAPIC timer into the scheduler**
+  - **Why:** Tasks shouldn't have to be polite.
+  - **Study:** What "preemption" means and why it must be careful (interrupts must be disabled in critical sections).
+  - **What:** In the timer IRQ handler, after a fixed quantum, call `yield()`.
+  - **Verify:** Two tasks that never yield voluntarily still alternate output.
+  - **Notes:**
+
+- [ ] **Add task states**
+  - **What:** Enum: `running`, `ready`, `blocked`, `sleeping`, `zombie`.
+  - **Verify:** State transitions log correctly.
+  - **Notes:**
+
+- [ ] **Implement `sleep(ms)`**
+  - **What:** Mark task `sleeping`, store wake-up tick, remove from ready queue. In timer handler, walk sleepers and wake any whose time has come.
+  - **Verify:** `sleep(1000)` actually sleeps for ~1 second.
+  - **Notes:**
+
+### 8.3 Synchronization primitives
+
+- [ ] **Study locks at single-CPU level**
+  - **Why:** Even single-CPU kernels need to protect against IRQ-vs-task races.
+  - **Study:** Why you can't just `cli` for everything. Spinlocks with IRQ disable/restore.
+  - **Verify:** You can describe a race between a task and an IRQ handler touching the same list.
+  - **Notes:**
+
+- [ ] **Implement an IRQ-safe spinlock**
+  - **What:** `acquire()` saves the RFLAGS interrupt bit, disables IRQs, takes the lock. `release()` releases and restores.
+  - **Verify:** Wrap your ready queue operations in the lock. Stress test with many tasks.
+  - **Notes:**
+
+- [ ] **Implement a semaphore and a mutex**
+  - **What:** Built on top of the spinlock + wait queues. Mutex sleeps the task instead of spinning.
+  - **Verify:** Producer/consumer test with bounded buffer works without lost or duplicated items.
+  - **Notes:**
+
+### Phase 8 Milestone
+
+You have a real multitasking kernel. Dozens of tasks can run; some sleep; some block on locks. The screen and serial both reflect this concurrency.
+
+### Phase 8 Debug Checkpoint
+
+- [ ] Add a `ps` debug command listing all tasks, states, CPU time used.
+- [ ] Add stack-canary checks to detect stack overflow in a task.
+- [ ] Run a stress test: 100 tasks doing random sleep+work+yield. Confirm no crash for 10 minutes.
+- [ ] Write up: "Step-by-step what happens inside `contextSwitch` for the first switch from task A to task B."
+
+---
+
+## Phase 9 — User Space: Ring 3 and Syscalls
+
+**Goal of this phase:** Run untrusted code in Ring 3. It can't crash the kernel. It can only ask for things via syscalls.
+
+### 9.1 Prepare the GDT and TSS
+
+- [ ] **Study privilege levels**
+  - **Why:** Ring 0 (kernel) can do anything; Ring 3 (user) can't touch I/O, can't change CR3, can't disable interrupts.
+  - **Study:** DPL/CPL/RPL. The TSS (Task State Segment) and why long mode still needs it. The `IST` mechanism for safer interrupt stacks.
+  - **Verify:** You can explain why a syscall changes both CS and SS.
+  - **Notes:**
+
+- [ ] **Add user code/data segments to the GDT**
+  - **What:** Append two more descriptors with DPL=3.
+  - **Verify:** GDT now has 5 entries (null, k-code, k-data, u-code, u-data) — order matters for `sysret`.
+  - **Notes:**
+
+- [ ] **Set up a TSS**
+  - **What:** Define the TSS struct, populate `RSP0` with your current kernel stack, add a TSS descriptor to the GDT (it's 16 bytes), and load it with `ltr`.
+  - **Verify:** No fault after `ltr`. Print the TR value.
+  - **Notes:**
+
+### 9.2 The first user task
+
+- [ ] **Allocate a user-mode stack**
+  - **What:** Map pages with the U/S bit set, in a separate user-space virtual range.
+  - **Verify:** Pages show up in your `vmem dump` with user-accessible flag.
+  - **Notes:**
+
+- [ ] **Write a tiny user program**
+  - **Why:** You don't need an ELF loader yet — just hand-place some code at a known virtual address.
+  - **What:** Inline machine code or a separately compiled blob that does `mov rax, 1; mov rdi, ...; syscall; jmp $`.
+  - **Verify:** `objdump` it; manually copy bytes into a mapped user page.
+  - **Notes:**
+
+- [ ] **Drop to Ring 3**
+  - **What:** Set up the iretq frame: push user SS, user RSP, RFLAGS (with IF=1), user CS, user RIP. Execute `iretq`.
+  - **Verify:** First user instruction runs. If you instead get a #GP, recheck selector RPLs.
+  - **Notes:**
+
+### 9.3 Syscalls
+
+- [ ] **Study the `syscall`/`sysret` instructions**
+  - **Why:** Faster than `int 0x80`. The modern way.
+  - **Study:** STAR, LSTAR, SFMASK MSRs. The ABI: RAX=syscall number, RDI/RSI/RDX/R10/R8/R9 = args, RCX is clobbered (holds return RIP), R11 holds saved RFLAGS.
+  - **Verify:** You can list the calling convention.
+  - **Notes:**
+
+- [ ] **Configure the syscall MSRs**
+  - **What:** Write STAR (segment selectors), LSTAR (your handler address), SFMASK (which RFLAGS bits to clear). Set the SCE bit in EFER.
+  - **Verify:** Inspect MSRs from the QEMU monitor (`info registers`).
+  - **Notes:**
+
+- [ ] **Write the syscall entry stub**
+  - **Why:** This is delicate. User RSP must be swapped for a kernel RSP (typically via `swapgs` + per-CPU data).
+  - **Study:** `swapgs`, per-CPU storage via GS base.
+  - **What:** Naked assembly: swapgs, save user RSP, load kernel RSP, push registers, call Zig dispatcher, restore, swapgs, sysretq.
+  - **Verify:** A user program calling `syscall` returns cleanly.
+  - **Notes:**
+
+- [ ] **Implement first syscalls**
+  - **What:** `sys_write(fd, buf, len)` (just routes to your serial/console for now), `sys_exit(code)`, `sys_getpid()`, `sys_yield()`.
+  - **Verify:** User program writes "hello from ring 3" via `sys_write`. The string appears on screen + serial.
+  - **Notes:**
+
+- [ ] **Validate user pointers**
+  - **Why:** A user program can pass a kernel address as `buf`. You must check before dereferencing.
+  - **Study:** SMAP/SMEP. Why naive validation isn't enough.
+  - **What:** Write `validateUserPointer(ptr, len)` that walks page tables and confirms all pages are user-accessible.
+  - **Verify:** A malicious user program passing `0xFFFFFFFF80000000` to `sys_write` gets `-EFAULT`, not a kernel oops.
+  - **Notes:**
+
+### Phase 9 Milestone
+
+A user-mode program runs, makes syscalls, and cannot crash your kernel even when it deliberately tries.
+
+### Phase 9 Debug Checkpoint
+
+- [ ] Try every "bad" thing in user mode: write to CR3, execute `cli`, read kernel memory. Confirm each generates a #GP or #PF caught by your kernel.
+- [ ] Use GDB to step into the syscall stub from a breakpoint in the user program.
+- [ ] Write up: "What is on the stack at each step from `syscall` to my Zig dispatcher and back?"
+
+---
+
+## Phase 10 — Storage and Filesystems
+
+**Goal of this phase:** Load files from disk. Execute them.
+
+### 10.1 Initial ramdisk (start here)
+
+- [ ] **Study initrd and the TAR/USTAR format**
+  - **Why:** Asking the bootloader to load a TAR file into memory is the easiest "filesystem".
+  - **Study:** USTAR header layout. Limine's "modules" mechanism.
+  - **Verify:** You can describe the USTAR header fields.
+  - **Notes:**
+
+- [ ] **Add a module request**
+  - **What:** Ask Limine to load `initrd.tar` alongside your kernel.
+  - **Verify:** Print the module's address and size at boot.
+  - **Notes:**
+
+- [ ] **Parse the TAR**
+  - **What:** Walk the headers; list filenames + sizes to serial.
+  - **Verify:** `ls /` command (typed at your keyboard) lists every file you put in the TAR.
+  - **Notes:**
+
+### 10.2 The Virtual File System (VFS)
+
+- [ ] **Study VFS concepts**
+  - **Why:** Decouples "open/read/write/close" from the underlying storage.
+  - **Study:** Inodes, dentries, file descriptors, vfs vtables.
+  - **Verify:** You can sketch the relationship between an `Inode` and a `File`.
+  - **Notes:**
+
+- [ ] **Define VFS interfaces**
+  - **What:** `Inode`, `File`, `Mount`, with vtables (`read`, `write`, `lookup`, `readdir`).
+  - **Verify:** Multiple filesystem types can implement the same vtable.
+  - **Notes:**
+
+- [ ] **Mount the initrd as a TARFS**
+  - **What:** Implement the vtable on top of your TAR parser.
+  - **Verify:** `cat /hello.txt` (typed at your keyboard) prints the file's content.
+  - **Notes:**
+
+- [ ] **Add VFS syscalls**
+  - **What:** `sys_open`, `sys_read`, `sys_write`, `sys_close`, `sys_lseek`.
+  - **Verify:** User program reads a file from initrd and prints it.
+  - **Notes:**
+
+### 10.3 Real disk I/O
+
+- [ ] **Pick a disk protocol**
+  - **Why:** ATA PIO is dead simple but slow; AHCI (SATA) is more realistic. Start with ATA PIO.
+  - **Study:** ATA PIO command set, ports `0x1F0-0x1F7`. OSDev Wiki: "ATA PIO Mode".
+  - **Verify:** You can describe the read-sector command sequence.
+  - **Notes:**
+
+- [ ] **Configure QEMU with a disk**
+  - **What:** Add `-drive file=disk.img,format=raw` to your QEMU args. Create a 64 MiB raw image.
+  - **Verify:** QEMU boots and you can see disk via `info block` in the monitor.
+  - **Notes:**
+
+- [ ] **ATA PIO read driver**
+  - **What:** Implement `readSector(lba, buf)`. Identify the drive first.
+  - **Verify:** Read sector 0 and print as hex. Matches what `hexdump disk.img | head` shows on your host.
+  - **Notes:**
+
+- [ ] **Add a block device layer**
+  - **What:** Generic `BlockDevice` interface with `read`/`write`. Wraps ATA.
+  - **Verify:** Read sector via the block device interface; result matches direct ATA read.
+  - **Notes:**
+
+### 10.4 FAT32 read-only
+
+- [ ] **Study FAT32**
+  - **Why:** Simple, universal, well-documented. Read-only is enough to start.
+  - **Study:** BPB (BIOS Parameter Block), FAT chains, directory entries (8.3 + LFN).
+  - **Verify:** You can describe how to find the first cluster of a file.
+  - **Notes:**
+
+- [ ] **Format and populate `disk.img`**
+  - **What:** On host: `mkfs.fat -F32 disk.img`, mount with loopback, copy files in.
+  - **Verify:** `file disk.img` reports a FAT32 filesystem.
+  - **Notes:**
+
+- [ ] **Parse the BPB**
+  - **What:** Read sector 0, verify signature, extract sectors-per-cluster, FAT location, root directory cluster.
+  - **Verify:** Logged values match `fsck.fat` output on the host.
+  - **Notes:**
+
+- [ ] **Walk the root directory**
+  - **What:** Read directory entries cluster by cluster following the FAT chain.
+  - **Verify:** Listing shows the files you put on disk.
+  - **Notes:**
+
+- [ ] **Read a file**
+  - **What:** Follow the cluster chain, return data.
+  - **Verify:** Contents of `/test.txt` on disk match what you wrote on the host.
+  - **Notes:**
+
+- [ ] **Mount FAT32 in the VFS**
+  - **What:** Implement the vtable.
+  - **Verify:** Same `cat /file` command works on both initrd and FAT32 mounts.
+  - **Notes:**
+
+### Phase 10 Milestone
+
+Your kernel reads files from a real disk through a real filesystem, exposed through a real VFS, accessed by real user programs.
+
+### Phase 10 Debug Checkpoint
+
+- [ ] Add `mount`, `ls`, `cat`, `xxd` debug commands.
+- [ ] Cross-verify every file you read against the host (`md5sum`).
+- [ ] Write up: "The full path of `cat /test.txt` from keystroke to pixel."
+
+---
+
+## Phase 11 — ELF Loader and a Real User Program
+
+**Goal of this phase:** Stop hand-crafting user code. Compile a separate Zig program, put it on the filesystem, and run it from your shell.
+
+- [ ] **Study ELF loading**
+  - **Why:** You parsed your kernel ELF in your head; now do it programmatically for user programs.
+  - **Study:** Program headers, `PT_LOAD` segments, `p_vaddr`, `p_memsz`, `p_filesz`, the `.bss` zero-fill behavior.
+  - **Verify:** You can list the steps to load a static ELF.
+  - **Notes:**
+
+- [ ] **Compile a user program**
+  - **What:** Create a separate Zig project targeting `x86_64-freestanding-none` for your "userland ABI". It calls only your syscalls.
+  - **Verify:** Produces a static ELF.
+  - **Notes:**
+
+- [ ] **Write the ELF loader**
+  - **What:** Read ELF from VFS, map `PT_LOAD` segments to user pages, copy data, zero `.bss`, set entry point.
+  - **Verify:** Load and run a "hello world" user program via syscall.
+  - **Notes:**
+
+- [ ] **Add `sys_exec` and `sys_fork` (or `sys_spawn`)**
+  - **Why:** Real OSes can launch processes from user code.
+  - **Study:** Tradeoffs between fork/exec vs posix_spawn vs your own design.
+  - **What:** Implement at least `sys_spawn(path, argv, envp)`.
+  - **Verify:** Shell program launches other programs.
+  - **Notes:**
+
+- [ ] **Add `sys_wait`**
+  - **What:** Block parent until child exits; reap exit status.
+  - **Verify:** Shell shows child's exit code.
+  - **Notes:**
+
+### Phase 11 Milestone
+
+You can write a Zig program, drop it in the disk image, and run it from a shell prompt inside your OS.
+
+### Phase 11 Debug Checkpoint
+
+- [ ] Crash your user program deliberately (null deref, syscall with bad args). Confirm only that program dies.
+- [ ] Write up: "What does my kernel do between `sys_spawn("/bin/hello")` and the first instruction of `hello`?"
+
+---
+
+## Phase 12 — A Real Shell and the User Experience
+
+**Goal of this phase:** You have a usable interactive system.
+
+- [ ] **Move the keyboard handling into user space**
+  - **What:** Add `sys_read` from `/dev/kbd` (or stdin). The kernel exposes the keyboard event queue as a file.
+  - **Verify:** User program reads keystrokes via standard `read`.
+  - **Notes:**
+
+- [ ] **Build a TTY layer**
+  - **What:** Line editing, canonical mode, echo on/off, basic cursor control.
+  - **Verify:** Typing into the shell shows characters; backspace works; enter submits.
+  - **Notes:**
+
+- [ ] **Write a shell as a user program**
+  - **What:** Reads lines, tokenizes, looks up `/bin/<cmd>`, spawns, waits.
+  - **Verify:** `ls`, `cat`, `echo`, `pwd` work as separate binaries.
+  - **Notes:**
+
+- [ ] **Add pipes**
+  - **Why:** The killer feature of unix.
+  - **What:** `sys_pipe(fds: [2]i32)`. In-kernel buffer with reader/writer file descriptors.
+  - **Verify:** `ls | cat` shows the listing.
+  - **Notes:**
+
+- [ ] **Add basic redirection**
+  - **What:** Parse `>` and `<` in the shell; `sys_dup2` to wire FDs before exec.
+  - **Verify:** `echo hi > /file && cat /file` prints `hi`.
+  - **Notes:**
+
+### Phase 12 Milestone
+
+You have a working unix-like shell on your own OS. You can pipe `ls | cat`. This is the moment to take a video for your future self.
+
+### Phase 12 Debug Checkpoint
+
+- [ ] Run a 10-command session entirely in your shell. Note every bug; fix them.
+- [ ] Write up: "From keypress to the prompt re-appearing — every layer involved."
+
+---
+
+## Phase 13 — Beyond the Single Core (SMP)
+
+**Goal of this phase:** Use all the CPUs QEMU exposes.
+
+- [ ] **Study SMP startup**
+  - **Why:** Bringing up additional cores ("APs") requires the LAPIC, an MP wakeup protocol, and per-CPU data.
+  - **Study:** Limine's SMP request (it does the hard part of getting APs out of real mode for you). Per-CPU storage via GS.MSR.
+  - **Verify:** You can list what state each AP starts in.
+  - **Notes:**
+
+- [ ] **Boot the APs**
+  - **What:** Make a Limine SMP request; in the entry callback, set up GDT/IDT/CR3/GS for that core; mark ready.
+  - **Verify:** Log "CPU N online" for every core. Count matches QEMU's `-smp`.
+  - **Notes:**
+
+- [ ] **Per-CPU data**
+  - **What:** A struct per CPU, accessed via GS base.
+  - **Verify:** Each core prints a different `cpu_id`.
+  - **Notes:**
+
+- [ ] **Make the scheduler SMP-aware**
+  - **Why:** Each CPU now picks tasks from a shared (or per-CPU) ready queue.
+  - **Study:** Per-CPU vs global run queues. Load balancing.
+  - **What:** Start with a single global queue + spinlock. Profile later.
+  - **Verify:** All cores show usage during a multi-task workload.
+  - **Notes:**
+
+- [ ] **Audit locks**
+  - **What:** Every shared data structure needs a real lock now.
+  - **Verify:** Stress test for an hour with no corruption.
+  - **Notes:**
+
+### Phase 13 Milestone
+
+`qemu-system-x86_64 -smp 4` and your OS uses all four cores.
+
+### Phase 13 Debug Checkpoint
+
+- [ ] Add a `topology` debug command showing CPUs, their states, and current tasks.
+- [ ] Write up: "What changed in my kernel to go from 1 to N cores?"
+
+---
+
+## Phase 14 — Polish and Stretch Goals
+
+These are the things that turn a "demo OS" into something you'd be proud to show.
+
+- [ ] **Networking** — RTL8139 driver, ARP, IPv4, UDP, then TCP. (Months of work.)
+- [ ] **Sound** — AC'97 or HDA driver. Play a WAV.
+- [ ] **PCI enumeration** — Walk PCI config space, discover devices, hand off to drivers.
+- [ ] **USB stack** — xHCI driver. Mouse and keyboard over USB.
+- [ ] **A windowing system** — Compositor in user space, mouse cursor, drag-and-drop.
+- [ ] **More filesystems** — ext2 read/write, then read-write FAT, then your own FS design.
+- [ ] **A package format and a port system** — for adding new userland programs.
+- [ ] **UEFI boot path** — already supported by Limine; explore writing a Zig UEFI app yourself.
+- [ ] **Boot on real hardware** — write the ISO to a USB stick; boot an old laptop. Bring a fire extinguisher.
+
+---
+
+## Cross-Cutting Practices
+
+These aren't a phase — they're habits to keep from Phase 0 onward.
+
+- [ ] **Commit often**, with messages describing *what changed and why it worked* (or didn't).
+- [ ] **Keep a `docs/` folder** with one Markdown file per phase. Use the "Notes" spaces in this roadmap as the seed.
+- [ ] **Re-run earlier milestones often.** Phase 8 can subtly break Phase 6; catch regressions early.
+- [ ] **Use `zig build test`** for everything testable in userland (parsers, allocators, data structures).
+- [ ] **Don't optimize until you measure.** Naive algorithms are fine for years.
+- [ ] **Read other people's code.** Sortix, SerenityOS, Theseus, Hubris, Redox, the Linux 0.01 source. Steal ideas, never steal code (license).
+- [ ] **Keep a "weird behavior" log.** Every QEMU quirk, every Intel SDM footnote that bit you. Future-you will thank you.
+
+---
+
+## Suggested Documentation Template (for your own notes)
+
+For each phase, create `docs/phase-NN.md`:
+
+```markdown
+# Phase NN — <title>
+
+## What I built
+<one paragraph>
+
+## What I learned (concepts)
+- Concept 1: <my explanation, not copy-pasted>
+- Concept 2: ...
+
+## What surprised me
+<things that didn't match the docs, or that took me hours to figure out>
+
+## What I'd do differently
+<honest postmortem>
+
+## Verification evidence
+<screenshots, serial logs, gdb sessions>
+
+## Open questions
+<things I deferred — return to these later>
+```
+
+Treat this roadmap as a scaffold for *your* documentation. The point isn't to finish the checkboxes — it's to be able to teach someone else what you learned at each step.
