@@ -61,11 +61,52 @@
   - **Verify:** `tree .` shows your structure.
   - **Notes:**
 
-- [ ] **Write a minimal `main.zig`**
+- [x] **Write a minimal `main.zig`**
   - **Why:** Start with the smallest thing that compiles for a freestanding target.
   - **What:** Define an exported function `_start` that loops forever (`while (true) {}`).
   - **Verify:** The file is under 10 lines.
   - **Notes:**
+    - It errors-out the compilation:
+    ```
+    install
+    └─ install zig_os
+       └─ compile exe zig_os Debug native 2 errors
+    /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:697:43: error: root source file struct 'main' has no member named 'main'
+        const fn_info = @typeInfo(@TypeOf(root.main)).@"fn";
+                                          ~~~~^~~~~
+    kernel/main.zig:1:1: note: struct declared here
+    export fn _start() !void {
+    ^~~~~~
+    /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:638:20: note: called inline here
+        return callMain(argv[0..argc], env_block);
+               ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~
+    /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:590:38: note: called inline here
+        std.process.exit(callMainWithArgs(argc, argv, envp));
+                         ~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~
+    referenced by:
+        _start: /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:469:40
+        comptime: /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:69:67
+        2 reference(s) hidden; use '-freference-trace=4' to see all references
+    kernel/main.zig:1:21: error: return type '!void' not allowed in function with calling convention 'aarch64_aapcs_darwin'
+    export fn _start() !void {
+                        ^~~~
+    error: 2 compilation errors
+    failed command: /opt/homebrew/Cellar/zig/0.16.0_1/bin/zig build-exe -ODebug -Mroot=/Users/rbreno/github.com/rafaelbreno/zig-os/kernel/main.zig --cache-dir .zig-cache --global-cache-dir /Users/rbreno/.cache/zig --name zig_os --zig-lib-dir /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/ --listen=-
+
+    Build Summary: 0/3 steps succeeded (1 failed)
+    install transitive failure
+    └─ install zig_os transitive failure
+       └─ compile exe zig_os Debug native 2 errors
+
+    error: the following build command failed with exit code 1:
+    .zig-cache/o/c800a2af78b2ce5bfd22a6a5c0262c60/build /opt/homebrew/Cellar/zig/0.16.0_1/bin/zig /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig /Users/rbreno/github.com/rafaelbreno/zig-os .zig-cache /Users/rbreno/.cache/zig --seed 0x5616ffba -Z1036a9047c8a36b9
+    ```
+    - The file is looking like this:
+    ```
+    export fn _start() noreturn {
+        while (true) {}
+    }
+    ```
 
 - [ ] **Write `build.zig` for freestanding x86_64**
   - **Why:** This file is how you control the compiler. Get it right once.
