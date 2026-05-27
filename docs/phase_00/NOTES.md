@@ -1,4 +1,4 @@
-# Phase 0 - Notes
+# Phase 0 - Notes for `The Sandbox: Tooling, Emulation, and Your First ELF`
 
 ## 0.1 Install the toolschain
 
