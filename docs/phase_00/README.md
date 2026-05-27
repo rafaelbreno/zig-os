@@ -61,20 +61,65 @@
   - **Verify:** `tree .` shows your structure.
   - **Notes:**
 
-- [ ] **Write a minimal `main.zig`**
+- [x] **Write a minimal `main.zig`**
   - **Why:** Start with the smallest thing that compiles for a freestanding target.
   - **What:** Define an exported function `_start` that loops forever (`while (true) {}`).
   - **Verify:** The file is under 10 lines.
   - **Notes:**
+    - It errors-out the compilation:
+    ```
+    install
+    └─ install zig_os
+       └─ compile exe zig_os Debug native 2 errors
+    /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:697:43: error: root source file struct 'main' has no member named 'main'
+        const fn_info = @typeInfo(@TypeOf(root.main)).@"fn";
+                                          ~~~~^~~~~
+    kernel/main.zig:1:1: note: struct declared here
+    export fn _start() !void {
+    ^~~~~~
+    /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:638:20: note: called inline here
+        return callMain(argv[0..argc], env_block);
+               ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~
+    /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:590:38: note: called inline here
+        std.process.exit(callMainWithArgs(argc, argv, envp));
+                         ~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~
+    referenced by:
+        _start: /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:469:40
+        comptime: /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:69:67
+        2 reference(s) hidden; use '-freference-trace=4' to see all references
+    kernel/main.zig:1:21: error: return type '!void' not allowed in function with calling convention 'aarch64_aapcs_darwin'
+    export fn _start() !void {
+                        ^~~~
+    error: 2 compilation errors
+    failed command: /opt/homebrew/Cellar/zig/0.16.0_1/bin/zig build-exe -ODebug -Mroot=/Users/rbreno/github.com/rafaelbreno/zig-os/kernel/main.zig --cache-dir .zig-cache --global-cache-dir /Users/rbreno/.cache/zig --name zig_os --zig-lib-dir /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/ --listen=-
 
-- [ ] **Write `build.zig` for freestanding x86_64**
+    Build Summary: 0/3 steps succeeded (1 failed)
+    install transitive failure
+    └─ install zig_os transitive failure
+       └─ compile exe zig_os Debug native 2 errors
+
+    error: the following build command failed with exit code 1:
+    .zig-cache/o/c800a2af78b2ce5bfd22a6a5c0262c60/build /opt/homebrew/Cellar/zig/0.16.0_1/bin/zig /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig /Users/rbreno/github.com/rafaelbreno/zig-os .zig-cache /Users/rbreno/.cache/zig --seed 0x5616ffba -Z1036a9047c8a36b9
+    ```
+    - The file is looking like this:
+    ```
+    export fn _start() noreturn {
+        while (true) {}
+    }
+    ```
+
+- [x] **Write `build.zig` for freestanding x86_64**
   - **Why:** This file is how you control the compiler. Get it right once.
   - **Study:** `std.Build`, `addExecutable`, `setTarget`, `code_model`, `red_zone`.
-  - **What:** Configure the target as `x86_64-freestanding-none`. Disable the red zone. Set the code model to `.kernel`. Disable SIMD/SSE for now.
+  - **What:** 
+    - Configure the target as `x86_64-freestanding-none`. 
+    - Disable the red zone. 
+    - Set the code model to `.kernel`. 
+    - Disable SIMD/SSE for now. [x86 Features](https://ziglang.org/documentation/0.16.0/std/#std.Target.x86.Feature)
   - **Verify:** `zig build` succeeds and produces an ELF file under `zig-out/`.
   - **Notes:**
 
-- [ ] **Inspect your output**
+- [x] **Inspect your output**
   - **Why:** Trust but verify. Look at what the compiler produced.
   - **What:** Run `readelf -h zig-out/bin/kernel.elf` and `objdump -d zig-out/bin/kernel.elf`.
   - **Verify:** You can find `_start` in the disassembly and it's a simple infinite loop.
@@ -86,10 +131,10 @@ You can run `zig build` and reliably produce an ELF kernel binary. You can read 
 
 ## Phase 0 Debug Checkpoint
 
-- [ ] Practice using `readelf -S` to list sections.
-- [ ] Practice using `objdump -d --disassembler-color=on` to read x86_64 assembly.
-- [ ] Bookmark the OSDev Wiki page on "Bare Bones" and "Beginner Mistakes".
-- [ ] Open a notebook or `docs/` folder. From this point forward, write down every weird thing you encounter.
+- [x] Practice using `readelf -S` to list sections.
+- [x] Practice using `objdump -d` to read x86_64 assembly.
+- [x] Bookmark the OSDev Wiki page on "Bare Bones" and "Beginner Mistakes".
+- [x] Open a notebook or `docs/` folder. From this point forward, write down every weird thing you encounter.
 
 ---
 
