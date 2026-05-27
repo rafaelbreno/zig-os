@@ -4,14 +4,14 @@
 
 ## 1.1 Understand the boot chain
 
-- [ ] **Study how an x86_64 PC boots**
+- [x] **Study how an x86_64 PC boots**
   - **Why:** You need to know what hands control to whom. Power → firmware → bootloader → your kernel.
   - **Study:** BIOS vs UEFI. POST. The role of the bootloader. Why we don't write our own bootloader (yet).
   - **What:** Read OSDev Wiki: "Boot Sequence", "Limine".
   - **Verify:** You can draw the boot chain on paper.
   - **Notes:**
 
-- [ ] **Study the Limine boot protocol**
+- [x] **Study the Limine boot protocol**
   - **Why:** Limine is modern, simple, supports both BIOS and UEFI, and gives your kernel a clean handoff with a memory map already prepared.
   - **Study:** Limine boot protocol specification (request/response model, what info it provides).
   - **What:** Read the Limine protocol docs end-to-end once.

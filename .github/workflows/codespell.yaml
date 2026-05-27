@@ -1,0 +1,20 @@
+name: Codespell
+
+on:
+  pull_request:
+    # Only run this workflow if files in these specific paths are changed
+    paths:
+      - 'docs/'
+
+jobs:
+  codespell:
+    name: Check Spelling
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run Codespell
+        uses: codespell-project/actions-codespell@406322ec52dd7b488e48c1c4b82e2a8b3a1bf630 # v2.1
+        with:
+          path: docs/
