@@ -111,7 +111,11 @@
 - [ ] **Write `build.zig` for freestanding x86_64**
   - **Why:** This file is how you control the compiler. Get it right once.
   - **Study:** `std.Build`, `addExecutable`, `setTarget`, `code_model`, `red_zone`.
-  - **What:** Configure the target as `x86_64-freestanding-none`. Disable the red zone. Set the code model to `.kernel`. Disable SIMD/SSE for now.
+  - **What:** 
+    - Configure the target as `x86_64-freestanding-none`. 
+    - Disable the red zone. 
+    - Set the code model to `.kernel`. 
+    - Disable SIMD/SSE for now. [x86 Features](https://ziglang.org/documentation/0.16.0/std/#std.Target.x86.Feature)
   - **Verify:** `zig build` succeeds and produces an ELF file under `zig-out/`.
   - **Notes:**
 

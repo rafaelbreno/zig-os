@@ -197,6 +197,8 @@ _Object Files_ are binary representations of programs inteded to execute _direct
 - `kernel/`
     - Here we will have our Ring 0 code (talks directly to the hardware)
 
+#### Build
+
 ### What surprised me
 <things that didn't match the docs, or that took me hours to figure out>
 
