@@ -168,7 +168,7 @@ _Object Files_ are binary representations of programs inteded to execute _direct
 ## 0.3 First freestanding build
 
 ### What I built
-<one paragraph>
+A minimal freestanding x86_64 kernel binary that compiles to ELF format. The kernel has a single `_start` entry point that loops forever.
 
 ### What I learned (concepts)
 
@@ -181,32 +181,63 @@ _Object Files_ are binary representations of programs inteded to execute _direct
 ├── build.zig.zon
 ├── docs/
 ├── kernel/
-│   └── main.zig
+│   └── src/
+│       └── main.zig
 ├── LICENSE
 ├── README.md
 └── TODO.md
 ```
 
 - `boot/`
-    - Here we will have all the necessary files for booting.
-    - We haven't reached this point yet, so, we just need to know that it is stuff related to booting.
+    - Here we will have all the necessary files for booting (linker script, Limine config, etc.)
+    - Populated starting in Phase 1.2
 - `build/`
-    - Here will be the output of our build
+    - Output directory for compiled artifacts (controlled by `build.zig`)
 - `docs/`
-    - Here we will have the whole development documented in _Markdown_ files
-- `kernel/`
-    - Here we will have our Ring 0 code (talks directly to the hardware)
+    - Development documentation in Markdown files
+- `kernel/src/`
+    - Ring 0 code that talks directly to hardware
 
-#### Build
+#### The `_start` Function
+- `_start` is the **entry point** — the linker looks for this symbol to know where the CPU should jump first
+- Must be `export`ed so it appears in the ELF object file and the linker can find it
+- Marked `noreturn` because it never returns (loops forever)
+
+#### `build.zig` Configuration
+The build file configures:
+- **Target**: `x86_64-freestanding-none` (64-bit Intel/AMD, no OS layer, no ABI)
+- **Code Model**: `.kernel` (generates code suitable for kernel-space addresses)
+- **Red Zone**: Disabled (`false`) — the red zone is a System V ABI feature we can't use in freestanding code
+- **Artifact Installation**: Compiles to ELF and places in `zig-out/bin/`
+
+Removed the `run` step because `zig build run` would try to execute a kernel binary on the host (which makes no sense — we'll boot with QEMU instead).
+
+#### Assembly Output
+The compiler generates:
+```asm
+_start:
+  push %rbp           # Function prologue (not strictly needed for noreturn)
+  mov %rsp,%rbp
+  nop
+  jmp <_start+0x4>    # Infinite loop back to nop
+```
+
+The prologue happens automatically; the `jmp` is your `while(true){}` in assembly form.
 
 ### What surprised me
-<things that didn't match the docs, or that took me hours to figure out>
+The compiler automatically adds function prologue/epilogue code even for a `noreturn` function that doesn't need it. For now this is fine, but in optimized code we could use `naked` functions to remove it.
+With `.naked` the `main.zig` file would look like this:
+```zig
+```
 
 ### What I'd do differently
-<honest postmortem>
+Nothing — straightforward phase. The structure is clean and the build output is as expected.
 
 ### Verification evidence
-<screenshots, serial logs, gdb sessions>
+- `zig build` succeeds
+- `readelf -h zig-out/bin/zig-os` shows ELF64 executable, entry point at `0x103def0`
+- `objdump -d zig-out/bin/zig-os` shows `_start` as a simple infinite loop
 
 ### Open questions
-<things I deferred — return to these later>
+- Why does the compiler add prologue/epilogue to a `noreturn` function? (Minor optimization opportunity for later)
+- How does the linker script (Phase 1.2) change the entry point address from `0x103def0` to the high-half kernel space?

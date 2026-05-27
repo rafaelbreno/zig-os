@@ -108,7 +108,7 @@
     }
     ```
 
-- [ ] **Write `build.zig` for freestanding x86_64**
+- [x] **Write `build.zig` for freestanding x86_64**
   - **Why:** This file is how you control the compiler. Get it right once.
   - **Study:** `std.Build`, `addExecutable`, `setTarget`, `code_model`, `red_zone`.
   - **What:** 
@@ -119,7 +119,7 @@
   - **Verify:** `zig build` succeeds and produces an ELF file under `zig-out/`.
   - **Notes:**
 
-- [ ] **Inspect your output**
+- [x] **Inspect your output**
   - **Why:** Trust but verify. Look at what the compiler produced.
   - **What:** Run `readelf -h zig-out/bin/kernel.elf` and `objdump -d zig-out/bin/kernel.elf`.
   - **Verify:** You can find `_start` in the disassembly and it's a simple infinite loop.
@@ -131,10 +131,10 @@ You can run `zig build` and reliably produce an ELF kernel binary. You can read 
 
 ## Phase 0 Debug Checkpoint
 
-- [ ] Practice using `readelf -S` to list sections.
-- [ ] Practice using `objdump -d --disassembler-color=on` to read x86_64 assembly.
-- [ ] Bookmark the OSDev Wiki page on "Bare Bones" and "Beginner Mistakes".
-- [ ] Open a notebook or `docs/` folder. From this point forward, write down every weird thing you encounter.
+- [x] Practice using `readelf -S` to list sections.
+- [x] Practice using `objdump -d` to read x86_64 assembly.
+- [x] Bookmark the OSDev Wiki page on "Bare Bones" and "Beginner Mistakes".
+- [x] Open a notebook or `docs/` folder. From this point forward, write down every weird thing you encounter.
 
 ---
 
