@@ -103,16 +103,16 @@ Not important right now, but:
 
 ## 0.2 Understand the build target
 
-## What I built
+### What I built
 <one paragraph>
 
-## What I learned (concepts)
+### What I learned (concepts)
 
-### Freestanding Program(Standalone Program): 
+#### Freestanding Program(Standalone Program): 
 - Is a program that does not load any external module, library function or program.
 - Designed to run on bare metal (without an OS)
 
-### Target Triplets:
+#### Target Triplets:
 - Identifier for how the machine-code should be generated
 - Format: `arch-vendor-os-abi`
     - `arch`: Is the architecture, e.g `x86_64`
@@ -128,9 +128,9 @@ Not important right now, but:
     - Freestanding, so no vendor specific operations
     - No operating system, meaning no system calls, no memory management, nothing.
 
-### ELF
+#### ELF
 
-#### What is ELF
+##### What is ELF
 _Executable and Linking Format_, aka **ELF**, aka _object file format_, is a standard intended to streamline software development by providing developers with a set of binary interface definitions that extend across multiple operating environments.
 There're three main types of object files:
 - _Relocatable File_: Holds code and data suitable for linking with other object files.
@@ -142,7 +142,7 @@ There're three main types of object files:
 _Object Files_ are binary representations of programs inteded to execute _directly on a processor_, and that's what we want, because we will be writing a freestanding program.
 
 
-#### Sections
+##### Sections
 - `.text` (Code)
     - Holds the actual executable machine language instructions (compiled from a code).
 - `.data` (Initialized Data)
@@ -152,15 +152,59 @@ _Object Files_ are binary representations of programs inteded to execute _direct
 - `.rodata` (Read-Only Data)
     - Holds constant data that cannot be changed during execution.
 
-## What surprised me
+### What surprised me
 <things that didn't match the docs, or that took me hours to figure out>
 
-## What I'd do differently
+### What I'd do differently
 <honest postmortem>
 
-## Verification evidence
+### Verification evidence
 - _"You can explain in one sentence why your kernel can't use `std.io`."_:
     - `std.io` uses modules from the host machine, in a freestanding environment those modules don't exists.
 
-## Open questions
+### Open questions
+<things I deferred — return to these later>
+
+## 0.3 First freestanding build
+
+### What I built
+<one paragraph>
+
+### What I learned (concepts)
+
+#### Project Structure
+```shell
+.
+├── boot/ 
+├── build/
+├── build.zig
+├── build.zig.zon
+├── docs/
+├── kernel/
+│   └── main.zig
+├── LICENSE
+├── README.md
+└── TODO.md
+```
+
+- `boot/`
+    - Here we will have all the necessary files for booting.
+    - We haven't reached this point yet, so, we just need to know that it is stuff related to booting.
+- `build/`
+    - Here will be the output of our build
+- `docs/`
+    - Here we will have the whole development documented in _Markdown_ files
+- `kernel/`
+    - Here we will have our Ring 0 code (talks directly to the hardware)
+
+### What surprised me
+<things that didn't match the docs, or that took me hours to figure out>
+
+### What I'd do differently
+<honest postmortem>
+
+### Verification evidence
+<screenshots, serial logs, gdb sessions>
+
+### Open questions
 <things I deferred — return to these later>

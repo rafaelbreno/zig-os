@@ -55,7 +55,7 @@
 
 ## 0.3 First freestanding build
 
-- [ ] **Create the project skeleton**
+- [x] **Create the project skeleton**
   - **Why:** A predictable directory layout saves hours later.
   - **What:** Create `kernel/`, `boot/`, `build/`. Inside `kernel/`, create `src/main.zig`.
   - **Verify:** `tree .` shows your structure.
