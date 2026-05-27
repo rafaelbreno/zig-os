@@ -33,28 +33,30 @@ These aren't a phase — they're habits to keep from Phase 0 onward.
 
 ## Suggested Documentation Template (for your own notes)
 
-For each phase, create `docs/phase_NN/README.md`:
+For each phase, create `docs/phase_NN/NOTES.md`:
 
 ```markdown
-# Phase NN — <title>
+# Phase NN — Notes for `<title>`
 
-## What I built
+## N.N 
+
+### What I built
 <one paragraph>
 
-## What I learned (concepts)
+### What I learned (concepts)
 - Concept 1: <my explanation, not copy-pasted>
 - Concept 2: ...
 
-## What surprised me
+### What surprised me
 <things that didn't match the docs, or that took me hours to figure out>
 
-## What I'd do differently
+### What I'd do differently
 <honest postmortem>
 
-## Verification evidence
+### Verification evidence
 <screenshots, serial logs, gdb sessions>
 
-## Open questions
+### Open questions
 <things I deferred — return to these later>
 ```
 
