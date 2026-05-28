@@ -35,10 +35,13 @@ pub fn build(b: *std.Build) void {
         .root_module = b.createModule(root_module_opts),
     });
 
-    exe.image_base = null;
-
     // Wiring the Linker Script to our executable.
     exe.setLinkerScript(b.path("kernel/linker.ld"));
+
+    // Disable Position Independent Executable
+    exe.pie = false;
+
+    exe.image_base = 0x100000;
 
     // Force the output to a `build/` directory, so we have a predictable path
     // to the binary.
