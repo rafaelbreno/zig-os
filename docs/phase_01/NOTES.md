@@ -38,3 +38,49 @@ Limine is an advanced, portable, multiprotocol bootloader that bridges the mothe
 ### Open questions
 - How does Limine actually parse the ELF and know where to load sections?
 - What exactly is in the "standardized environment" Limine provides?
+
+## 1.2 The linker script.
+
+### What I built
+<one paragraph>
+
+### What I learned (concepts)
+
+#### Linker Script
+A _Linker Script_ principal use is specifying the format and layout of the final executable binary, this is relevant to OS dev because executable binaries often require specific file layouts in order to be recognized by certain bootloaders.
+
+#### Linker
+The Linker combines input files into a single output file.
+
+#### `ld` Syntax
+
+##### Keywords:
+- **ENTRY**:
+    - Defines the entry point of an application
+    - ```
+      ENTRY(_start)
+      ```
+- **SECTIONS**:
+    - Tells the linker how to map input sections into output sections, and how to place the output sections in memory.
+    - ```
+      SECTIONS
+      {
+          sections - command
+          sections - command
+      }
+      ```
+    - Where `sections - command`
+- ****:
+- ****:
+
+### What surprised me
+<things that didn't match the docs, or that took me hours to figure out>
+
+### What I'd do differently
+<honest postmortem>
+
+### Verification evidence
+<screenshots, serial logs, gdb sessions>
+
+### Open questions
+<things I deferred — return to these later>

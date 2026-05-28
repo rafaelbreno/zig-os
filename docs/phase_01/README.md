@@ -20,14 +20,14 @@
 
 ## 1.2 The linker script
 
-- [ ] **Study linker scripts**
+- [x] **Study linker scripts**
   - **Why:** The linker decides *where* each part of your kernel lives in memory. The bootloader expects specific addresses.
   - **Study:** GNU `ld` script syntax. `SECTIONS`, `ENTRY`, `PROVIDE`, alignment, the `.` location counter.
   - **What:** Read examples of minimal kernel linker scripts.
   - **Verify:** You can explain what `. = ALIGN(4K);` does.
   - **Notes:**
 
-- [ ] **Write `linker.ld`**
+- [x] **Write `linker.ld`**
   - **Why:** Without this, your sections land at unpredictable addresses and the bootloader can't find anything.
   - **What:** Define `ENTRY(_start)`. Place `.text`, `.rodata`, `.data`, `.bss` at a high-half virtual address (`0xFFFFFFFF80000000`). Align each section to 4K.
   - **Verify:** `readelf -l zig-out/bin/kernel.elf` shows program headers at the addresses you specified.

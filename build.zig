@@ -35,6 +35,11 @@ pub fn build(b: *std.Build) void {
         .root_module = b.createModule(root_module_opts),
     });
 
+    exe.image_base = null;
+
+    // Wiring the Linker Script to our executable.
+    exe.setLinkerScript(b.path("kernel/linker.ld"));
+
     // Force the output to a `build/` directory, so we have a predictable path
     // to the binary.
     const kernel_artifact = b.addInstallArtifact(exe, std.Build.Step.InstallArtifact.Options{
