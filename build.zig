@@ -62,4 +62,19 @@ pub fn build(b: *std.Build) void {
 
     iso_step.dependOn(&iso_script.step);
     b.default_step.dependOn(iso_step);
+
+    const run_step = b.step("run", "Run kernel in QEMU");
+
+    const qemu_cmd = b.addSystemCommand(&.{
+        "qemu-system-x86_64",
+        "-cdrom",
+        "build/os.iso",
+        "-serial",
+        "stdio",
+        "-no-reboot",
+        "-no-shutdown",
+    });
+
+    qemu_cmd.step.dependOn(iso_step);
+    run_step.dependOn(&qemu_cmd.step);
 }

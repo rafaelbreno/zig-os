@@ -41,14 +41,14 @@
 
 ## 1.3 Limine boot setup
 
-- [ ] **Add Limine requests to your kernel**
+- [x] **Add Limine requests to your kernel**
   - **Why:** Limine only gives you the information you ask for. You request features via specially-marked structs in your binary.
   - **Study:** Limine "requests" — how they work, why they're put in a dedicated `.requests` section.
   - **What:** Add a base revision marker and a framebuffer request to your kernel. Put them in a `.requests` section in the linker script.
   - **Verify:** `readelf -S` shows the `.requests` section in your ELF.
   - **Notes:**
 
-- [ ] **Write `limine.conf`**
+- [x] **Write `limine.conf`**
   - **Why:** Limine reads this to know which kernel to load.
   - **What:** Create a boot entry pointing to `boot:///kernel.elf` with protocol `limine`.
   - **Verify:** The file syntax matches the Limine docs.
