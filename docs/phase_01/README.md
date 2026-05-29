@@ -33,7 +33,7 @@
   - **Verify:** `readelf -l zig-out/bin/kernel.elf` shows program headers at the addresses you specified.
   - **Notes:**
 
-- [ ] **Wire the linker script into `build.zig`**
+- [x] **Wire the linker script into `build.zig`**
   - **Why:** Zig needs to know to use your custom script.
   - **What:** Pass `-T linker.ld` (or the Zig equivalent: `setLinkerScript`).
   - **Verify:** Rebuild — addresses in `readelf` now match your script.
