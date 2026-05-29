@@ -54,7 +54,7 @@
   - **Verify:** The file syntax matches the Limine docs.
   - **Notes:**
 
-- [ ] **Update `_start` to halt cleanly**
+- [x] **Update `_start` to halt cleanly**
   - **Why:** "Looping forever" with `while(true)` wastes CPU and is harder to spot in QEMU. `cli; hlt` is the canonical "kernel is alive and waiting" pose.
   - **Study:** What `cli` and `hlt` do at the CPU level. Why interrupts must be disabled before halt.
   - **What:** Replace your infinite loop with inline assembly: `cli`, then a loop of `hlt`.
@@ -63,20 +63,20 @@
 
 ## 1.4 Build the bootable ISO
 
-- [ ] **Add ISO build steps to `build.zig`**
+- [x] **Add ISO build steps to `build.zig`**
   - **Why:** Automating this means you can iterate fast. Manual steps will exhaust you.
   - **Study:** Limine's "How to install" instructions. The role of `limine-bios.sys`, `limine-uefi-cd.bin`, and `limine bios-install`.
   - **What:** Add a `zig build iso` step that: copies the kernel + Limine binaries + config into a staging folder, runs `xorriso` to make the ISO, runs `limine bios-install` to make it bootable.
   - **Verify:** `zig build iso` produces `os.iso` in `zig-out/`.
   - **Notes:**
 
-- [ ] **Add a `zig build run` step**
+- [x] **Add a `zig build run` step**
   - **Why:** One command to build and boot. Critical for fast iteration.
   - **What:** Add a step that runs `qemu-system-x86_64 -cdrom zig-out/os.iso -serial stdio -no-reboot -no-shutdown`.
   - **Verify:** `zig build run` launches QEMU.
   - **Notes:**
 
-- [ ] **Boot your kernel for the first time**
+- [x] **Boot your kernel for the first time**
   - **Why:** This is the milestone moment.
   - **What:** Run `zig build run`.
   - **Verify:** QEMU shows a black screen (or the Limine logo briefly) and stays running. No reboots. No "no bootable device" errors.

@@ -77,4 +77,21 @@ pub fn build(b: *std.Build) void {
 
     qemu_cmd.step.dependOn(iso_step);
     run_step.dependOn(&qemu_cmd.step);
+
+    const debug_step = b.step("debug", "Run kernel in QEMU with GDB server");
+
+    const qemu_debug = b.addSystemCommand(&.{
+        "qemu-system-x86_64",
+        "-cdrom",
+        "build/os.iso",
+        "-serial",
+        "stdio",
+        "-no-reboot",
+        "-no-shutdown",
+        "-s", // open gdbserver on port 1234
+        "-S", // pause CPU at startup, wait for GDB
+    });
+    qemu_debug.step.dependOn(iso_step);
+
+    debug_step.dependOn(&qemu_debug.step);
 }
