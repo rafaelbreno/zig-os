@@ -50,4 +50,16 @@ pub fn build(b: *std.Build) void {
     // Bind the kernel artifact step to the default `zig build` command,
     // ensuring that our Kernel's build rules are executed by default.
     b.getInstallStep().dependOn(&kernel_artifact.step);
+
+    const iso_step = b.step("iso", "Build bootable ISO");
+
+    const iso_script = b.addSystemCommand(&.{
+        "bash",
+        "scripts/build-iso.sh",
+    });
+
+    iso_script.step.dependOn(&kernel_artifact.step);
+
+    iso_step.dependOn(&iso_script.step);
+    b.default_step.dependOn(iso_step);
 }
