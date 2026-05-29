@@ -72,6 +72,11 @@ SECTIONS
     *(.bss)
   }
 
+  .requests ALIGN(8) : AT(ADDR(.requests) - KERNEL_VADDR_BASE)
+  {
+    *(.requests)
+  }
+
   /*
    * /DISCARD/ throws away sections we don't want in the final image.
    * .eh_frame / .eh_frame_hdr are exception-unwind tables we don't use,
