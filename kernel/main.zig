@@ -28,5 +28,8 @@ export const memmap_request: limine.MemMapRequest align(8) = .{
 //  The callconv specifier changes the calling convention of the function.
 //  .naked makes it no have a prologue/epilogue
 export fn _start() callconv(.naked) noreturn {
-    while (true) {}
+    asm volatile ("cli");
+    while (true) {
+        asm volatile ("hlt");
+    }
 }
