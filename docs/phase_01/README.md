@@ -33,7 +33,7 @@
   - **Verify:** `readelf -l zig-out/bin/kernel.elf` shows program headers at the addresses you specified.
   - **Notes:**
 
-- [ ] **Wire the linker script into `build.zig`**
+- [x] **Wire the linker script into `build.zig`**
   - **Why:** Zig needs to know to use your custom script.
   - **What:** Pass `-T linker.ld` (or the Zig equivalent: `setLinkerScript`).
   - **Verify:** Rebuild — addresses in `readelf` now match your script.
@@ -41,20 +41,20 @@
 
 ## 1.3 Limine boot setup
 
-- [ ] **Add Limine requests to your kernel**
+- [x] **Add Limine requests to your kernel**
   - **Why:** Limine only gives you the information you ask for. You request features via specially-marked structs in your binary.
   - **Study:** Limine "requests" — how they work, why they're put in a dedicated `.requests` section.
   - **What:** Add a base revision marker and a framebuffer request to your kernel. Put them in a `.requests` section in the linker script.
   - **Verify:** `readelf -S` shows the `.requests` section in your ELF.
   - **Notes:**
 
-- [ ] **Write `limine.conf`**
+- [x] **Write `limine.conf`**
   - **Why:** Limine reads this to know which kernel to load.
   - **What:** Create a boot entry pointing to `boot:///kernel.elf` with protocol `limine`.
   - **Verify:** The file syntax matches the Limine docs.
   - **Notes:**
 
-- [ ] **Update `_start` to halt cleanly**
+- [x] **Update `_start` to halt cleanly**
   - **Why:** "Looping forever" with `while(true)` wastes CPU and is harder to spot in QEMU. `cli; hlt` is the canonical "kernel is alive and waiting" pose.
   - **Study:** What `cli` and `hlt` do at the CPU level. Why interrupts must be disabled before halt.
   - **What:** Replace your infinite loop with inline assembly: `cli`, then a loop of `hlt`.
@@ -63,20 +63,20 @@
 
 ## 1.4 Build the bootable ISO
 
-- [ ] **Add ISO build steps to `build.zig`**
+- [x] **Add ISO build steps to `build.zig`**
   - **Why:** Automating this means you can iterate fast. Manual steps will exhaust you.
   - **Study:** Limine's "How to install" instructions. The role of `limine-bios.sys`, `limine-uefi-cd.bin`, and `limine bios-install`.
   - **What:** Add a `zig build iso` step that: copies the kernel + Limine binaries + config into a staging folder, runs `xorriso` to make the ISO, runs `limine bios-install` to make it bootable.
   - **Verify:** `zig build iso` produces `os.iso` in `zig-out/`.
   - **Notes:**
 
-- [ ] **Add a `zig build run` step**
+- [x] **Add a `zig build run` step**
   - **Why:** One command to build and boot. Critical for fast iteration.
   - **What:** Add a step that runs `qemu-system-x86_64 -cdrom zig-out/os.iso -serial stdio -no-reboot -no-shutdown`.
   - **Verify:** `zig build run` launches QEMU.
   - **Notes:**
 
-- [ ] **Boot your kernel for the first time**
+- [x] **Boot your kernel for the first time**
   - **Why:** This is the milestone moment.
   - **What:** Run `zig build run`.
   - **Verify:** QEMU shows a black screen (or the Limine logo briefly) and stays running. No reboots. No "no bootable device" errors.

@@ -50,4 +50,48 @@ pub fn build(b: *std.Build) void {
     // Bind the kernel artifact step to the default `zig build` command,
     // ensuring that our Kernel's build rules are executed by default.
     b.getInstallStep().dependOn(&kernel_artifact.step);
+
+    const iso_step = b.step("iso", "Build bootable ISO");
+
+    const iso_script = b.addSystemCommand(&.{
+        "bash",
+        "scripts/build-iso.sh",
+    });
+
+    iso_script.step.dependOn(&kernel_artifact.step);
+
+    iso_step.dependOn(&iso_script.step);
+    b.default_step.dependOn(iso_step);
+
+    const run_step = b.step("run", "Run kernel in QEMU");
+
+    const qemu_cmd = b.addSystemCommand(&.{
+        "qemu-system-x86_64",
+        "-cdrom",
+        "build/os.iso",
+        "-serial",
+        "stdio",
+        "-no-reboot",
+        "-no-shutdown",
+    });
+
+    qemu_cmd.step.dependOn(iso_step);
+    run_step.dependOn(&qemu_cmd.step);
+
+    const debug_step = b.step("debug", "Run kernel in QEMU with GDB server");
+
+    const qemu_debug = b.addSystemCommand(&.{
+        "qemu-system-x86_64",
+        "-cdrom",
+        "build/os.iso",
+        "-serial",
+        "stdio",
+        "-no-reboot",
+        "-no-shutdown",
+        "-s", // open gdbserver on port 1234
+        "-S", // pause CPU at startup, wait for GDB
+    });
+    qemu_debug.step.dependOn(iso_step);
+
+    debug_step.dependOn(&qemu_debug.step);
 }
