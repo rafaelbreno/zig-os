@@ -1,15 +1,15 @@
 // ----------------------------------------------------
 // Limine Common Magic
 // ----------------------------------------------------
+
 const limine_common_magic = [2]u64{ 0xc7b1dd30df4c8b88, 0x0a82e883a194f07b };
 
 // ----------------------------------------------------
 // HHDM (Higher Half Direct Map) Feature
 // ----------------------------------------------------
-const hhdm_common_magic = [4]u64{ limine_common_magic[0], limine_common_magic[1], 0x48dcf1cb8ad2b852, 0x63984e959a98244b };
 
 pub const HHDMRequest = extern struct {
-    id: [4]u64 = hhdm_common_magic,
+    id: [4]u64 = [4]u64{ limine_common_magic[0], limine_common_magic[1], 0x48dcf1cb8ad2b852, 0x63984e959a98244b },
     revision: u64,
     response: ?*HHDMResponse,
 };
@@ -22,10 +22,9 @@ pub const HHDMResponse = extern struct {
 // ----------------------------------------------------
 // FrameBuffer Feature
 // ----------------------------------------------------
-const framebuffer_common_magic = [4]u64{ limine_common_magic[0], limine_common_magic[1], 0x9d5827dcd881dd75, 0xa3148604f6fab11b };
 
 pub const FrameBufferRequest = extern struct {
-    id: [4]u64 = framebuffer_common_magic,
+    id: [4]u64 = [4]u64{ limine_common_magic[0], limine_common_magic[1], 0x9d5827dcd881dd75, 0xa3148604f6fab11b },
     revision: u64,
     response: ?*FrameBufferResponse,
 };
@@ -75,7 +74,6 @@ pub const VideoMode = extern struct {
 // ----------------------------------------------------
 // Memory Map Feature
 // ----------------------------------------------------
-const memmap_common_magic = [4]u64{ limine_common_magic[0], limine_common_magic[1], 0x67cf3d9d378a806f, 0xe304acdfc50c3c62 };
 
 pub const MemmapEntryType = enum(u64) {
     usable = 0,
@@ -97,7 +95,7 @@ pub const MemmapEntry = extern struct {
 };
 
 pub const MemMapRequest = extern struct {
-    id: [4]u64 = memmap_common_magic,
+    id: [4]u64 = [4]u64{ limine_common_magic[0], limine_common_magic[1], 0x67cf3d9d378a806f, 0xe304acdfc50c3c62 },
     revision: u64,
     response: ?*MemMapResponse,
 };
