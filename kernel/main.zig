@@ -1,4 +1,5 @@
 const limine = @import("limine.zig");
+const arch = @import("arch.zig");
 
 export var base_revision: [3]u64 align(8) = .{
     0xf9562b2d5c95a6c8,
