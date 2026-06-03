@@ -1,6 +1,7 @@
 // x86_64-specific serial driver implementation.
 // Initializes the COM1 UART for 115200 baud, 8N1 format.
 const port = @import("port.zig");
+const std = @import("std");
 
 /// Initialize the serial port (COM1) for output.
 /// Sets up the UART for 115200 baud, 8 data bits, no parity, 1 stop bit (8N1), and enables the FIFO.
@@ -49,4 +50,56 @@ pub fn writeString(str: []const u8) void {
         // writeByte handles polling and transmission.
         writeByte(byte);
     }
+}
+
+/// SerialWriter: a simple Writer implementation for std.fmt.
+/// This struct satisfies the Writer interface that std.fmt.format() expects.
+/// It has a single method: writeAll(), which std.fmt calls to output formatted text.
+pub const SerialWriter = struct {
+    writer: std.Io.Writer,
+
+    pub fn init() SerialWriter {
+        return .{
+            .writer = .{
+                .vtable = &.{
+                    .drain = drain,
+                },
+                .buffer = &.{},
+            },
+        };
+    }
+
+    fn drain(w: *std.Io.Writer, data: []const []const u8, splat: usize) std.Io.Writer.Error!usize {
+        const slice = data[0 .. data.len - 1];
+        const pattern = data[slice.len];
+
+        // count total
+        var written: usize = pattern.len * splat;
+        for (slice) |bytes| {
+            written += bytes.len;
+
+            for (bytes) |byte| {
+                writeByte(byte);
+            }
+        }
+
+        for (0..splat) |_| {
+            for (pattern) |byte| {
+                writeByte(byte);
+            }
+        }
+
+        w.end = 0;
+
+        return written;
+    }
+};
+
+/// print: formatted output to the serial port.
+/// Mimics std.debug.print, but routes output to COM1 instead of stderr.
+/// Usage: print("hello {s}, number: {d}\n", .{ "world", 42 })
+pub fn print(comptime fmt: []const u8, args: anytype) !void {
+    var writer = SerialWriter.init();
+
+    try (writer.writer).print(fmt, args);
 }
