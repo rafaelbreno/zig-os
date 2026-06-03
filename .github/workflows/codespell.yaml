@@ -4,7 +4,7 @@ on:
   pull_request:
     # Only run this workflow if files in these specific paths are changed
     paths:
-      - 'docs/'
+      - 'docs/**'
 
 jobs:
   codespell:
