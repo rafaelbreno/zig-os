@@ -27,3 +27,26 @@ pub fn init() void {
     // Set DTR(Data Terminal Ready) and RTS(Request To Send) to signal we're ready to communicate
     port.outb(0x3FC, 0x03);
 }
+
+/// Write a byte to the serial port (COM1).
+pub fn writeByte(byte: u8) void {
+    // Wait for the Transmitter Holding Register (THR) to be empty
+    // 0x3FD is the Line Status Register (LSR) for COM1, and bit 5 (0x20) indicates THR is empty.
+    while ((port.inb(0x3FD) & 0x20) == 0) {}
+
+    // Write the byte to the Transmitter Holding Register (THR)
+    // 0x3F8 is the base port for COM1, and writing to it sends data.
+    port.outb(0x3F8, byte);
+}
+
+/// Write a null-terminated string to the serial port one byte at a time.
+/// Each byte is sent via writeByte, which polls the UART until it's ready.
+pub fn writeString(str: []const u8) void {
+    // Iterate over each byte in the string.
+    // The `|byte|` syntax binds each element to the `byte` variable.
+    for (str) |byte| {
+        // Send each byte to the UART.
+        // writeByte handles polling and transmission.
+        writeByte(byte);
+    }
+}
