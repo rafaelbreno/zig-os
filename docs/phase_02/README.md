@@ -6,14 +6,14 @@
 
 ## 2.1 Serial output (do this first)
 
-- [ ] **Study x86 port I/O**
+- [x] **Study x86 port I/O**
   - **Why:** Many legacy devices (including the serial port) are controlled through I/O ports, a separate address space from memory.
   - **Study:** `in`/`out` instructions. Port addresses for COM1 (`0x3F8`). The 8250/16550 UART.
   - **What:** Read OSDev Wiki: "Serial Ports".
   - **Verify:** You can list the offsets for the data register, line status register, and line control register.
   - **Notes:**
 
-- [ ] **Write port I/O wrappers in Zig**
+- [x] **Write port I/O wrappers in Zig**
   - **Why:** You'll use `inb`/`outb` from dozens of places. Wrap them once.
   - **Study:** Zig inline assembly syntax (`asm volatile`, output/input/clobber).
   - **What:** Create `src/arch/x86_64/port.zig` with `outb`, `inb`, `outw`, `inw`, `outl`, `inl`.
