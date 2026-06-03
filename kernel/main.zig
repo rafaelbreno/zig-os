@@ -61,10 +61,7 @@ export var memmap_request: limine.MemMapRequest align(8) linksection(".requests"
 /// 2. Disable interrupts with `cli`
 /// 3. Loop with `hlt` (halt until next interrupt)
 export fn _start() noreturn {
-    // Test: verify port I/O functions exist and compile to real instructions.
-    // This call is kept alive (not optimized away) to ensure our `inb` function
-    // makes it into the final binary with actual `in` instructions.
-    _ = arch.inb(0x3F8);
+    arch.serial.init();
 
     // Disable interrupts. Critical at boot before we've set up the IDT.
     asm volatile ("cli");
