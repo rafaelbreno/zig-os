@@ -62,6 +62,8 @@ export var memmap_request: limine.MemMapRequest align(8) linksection(".requests"
 /// 3. Loop with `hlt` (halt until next interrupt)
 export fn _start() noreturn {
     arch.serial.init();
+    arch.serial.writeString("Hello from kernel!\n");
+    arch.serial.writeString("Here's a number: 42\n");
 
     // Disable interrupts. Critical at boot before we've set up the IDT.
     asm volatile ("cli");
