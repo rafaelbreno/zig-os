@@ -139,7 +139,7 @@ There're three main types of object files:
     1. Link editor may process it with other _Relocatable Files_ to create another _object file_.
     2. Dynamic Linker combines it with another _executable file_ and other _shared object files_ to create a process image.
 
-_Object Files_ are binary representations of programs inteded to execute _directly on a processor_, and that's what we want, because we will be writing a freestanding program.
+_Object Files_ are binary representations of programs intended to execute _directly on a processor_, and that's what we want, because we will be writing a freestanding program.
 
 
 ##### Sections
@@ -147,8 +147,8 @@ _Object Files_ are binary representations of programs inteded to execute _direct
     - Holds the actual executable machine language instructions (compiled from a code).
 - `.data` (Initialized Data)
     - Holds the initialized data that contributes to the program's memory image.
-- `.bss` (Block Started by Symbol / Unitialized Data)
-    - Holds global and static variables that are either unitialized or initialized to zero.
+- `.bss` (Block Started by Symbol / Uninitialized Data)
+    - Holds global and static variables that are either uninitialized or initialized to zero.
 - `.rodata` (Read-Only Data)
     - Holds constant data that cannot be changed during execution.
 
