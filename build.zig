@@ -1,9 +1,25 @@
 const std = @import("std");
+const Feature = std.Target.x86.Feature;
 
 // Orchestrates the kernel build pipeline.
 // Standard build default is to assume a host OS; this script
 // configures the compiler for a bare-metal environment.
 pub fn build(b: *std.Build) void {
+    var disabled_features = std.Target.Cpu.Feature.Set.empty;
+    var enabled_features = std.Target.Cpu.Feature.Set.empty;
+
+    // The kernel hasn't enabled SSE in CR0/CR4, so any SSE instruction the
+    // compiler emits (e.g. for memcpy inside std.Io.Writer) would fault.
+    // Disable SIMD codegen entirely for now.
+    disabled_features.addFeature(@intFromEnum(Feature.mmx));
+    disabled_features.addFeature(@intFromEnum(Feature.sse));
+    disabled_features.addFeature(@intFromEnum(Feature.sse2));
+    disabled_features.addFeature(@intFromEnum(Feature.avx));
+    disabled_features.addFeature(@intFromEnum(Feature.avx2));
+
+    // Route floating-point through software so the compiler never needs SSE for floats.
+    enabled_features.addFeature(@intFromEnum(Feature.soft_float));
+
     // Target bare-metal x86_64 hardware
     // The 'freestanding' tag and 'none' ABI are required, so the
     // compiler doesn't attempt to link libc or assume underlying host OS capabilities.
@@ -11,6 +27,8 @@ pub fn build(b: *std.Build) void {
         .cpu_arch = .x86_64,
         .os_tag = .freestanding,
         .abi = .none,
+        .cpu_features_add = enabled_features,
+        .cpu_features_sub = disabled_features,
     });
 
     // Allows the developer to pass CLI flags (e.g -Doptimize=ReleaseSafe)

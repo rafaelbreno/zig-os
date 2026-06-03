@@ -20,20 +20,20 @@
   - **Verify:** Code compiles. Inspect generated assembly with `objdump` to confirm real `in`/`out` instructions.
   - **Notes:**
 
-- [ ] **Initialize COM1**
+- [x] **Initialize COM1**
   - **Why:** Without initialization the UART won't transmit.
   - **Study:** UART init sequence: disable interrupts, set DLAB, set baud divisor, set 8N1, enable FIFO, set DTR/RTS.
   - **What:** Create `src/drivers/serial.zig` with `init()`.
   - **Verify:** After calling `init()`, the loopback test (set bit 4 of MCR, write byte, read back) succeeds.
   - **Notes:**
 
-- [ ] **Implement `writeByte` and `writeString`**
+- [x] **Implement `writeByte` and `writeString`**
   - **Why:** This is your first real output.
   - **What:** Add functions that poll the Line Status Register's "transmitter empty" bit, then write a byte to the data register.
   - **Verify:** Call `serial.writeString("Hello from kernel!\n")` from `_start`. Run with `-serial stdio`. Text appears in your terminal.
   - **Notes:**
 
-- [ ] **Hook serial into Zig's `std.fmt`**
+- [x] **Hook serial into Zig's `std.fmt`**
   - **Why:** You want `print("value = {}\n", .{x})` to work. This is huge for debugging.
   - **Study:** `std.fmt.format`, the `Writer` interface, how to satisfy it without `std.io`.
   - **What:** Create a minimal `Writer` that calls `serial.writeByte`. Wrap `std.fmt.format` in a `print` function.
