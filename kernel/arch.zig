@@ -29,3 +29,16 @@ pub const outw = port_module.outw;
 pub const inw = port_module.inw;
 pub const outl = port_module.outl;
 pub const inl = port_module.inl;
+
+// architecture-specific serial driver module.
+// Like the port I/O abstraction, this comptime switch picks the right implementation
+// based on the target architecture. For x86_64, we get the x86_64-specific UART init.
+// When porting to RISC-V, just add another case that imports the RISC-V serial module.
+const serial_module = switch (builtin.target.cpu.arch) {
+    .x86_64 => @import("arch/x86_64/serial.zig"),
+    else => @compileError("Unsupported architecture"),
+};
+
+// Re-export the serial module so callers use `arch.serial.init()` instead of
+// `arch.x86_64.serial.init()`. This keeps the API clean and architecture-agnostic.
+pub const serial = serial_module;
