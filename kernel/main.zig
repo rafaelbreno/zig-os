@@ -37,7 +37,22 @@ export fn _start() noreturn {
     // boot_info holds the HHDM offset, framebuffer geometry, and physical memory map —
     // the three things every phase from 2 onward depends on.
     const boot_info = bootloader.init();
-    _ = boot_info; // Phase 2.2: framebuffer address; Phase 5: memory map for frame allocator.
+    arch.serial.print("boot_info.framebuffer: {?}\n", .{boot_info.framebuffer}) catch {};
+    arch.serial.print("boot_info.framebuffer.address in hex: {x}\n", .{boot_info.framebuffer.?.address}) catch {};
+
+    const framebuffer_info = boot_info.framebuffer.?;
+
+    const address: u64 = framebuffer_info.address;
+    var buffer: [*]volatile u32 = @ptrFromInt(address);
+
+    const bytes_per_pixel = framebuffer_info.bpp / 8;
+    const pixels_per_row = framebuffer_info.pitch / bytes_per_pixel;
+
+    for (0..framebuffer_info.height) |y| {
+        for (0..framebuffer_info.width) |x| {
+            buffer[y * pixels_per_row + x] = 0x00FF0000;
+        }
+    }
 
     // Disable interrupts. Critical at boot before we've set up the IDT.
     asm volatile ("cli");
