@@ -1,9 +1,15 @@
-const std = @import("std");
-const Feature = std.Target.x86.Feature;
-
 // Orchestrates the kernel build pipeline.
 // Standard build default is to assume a host OS; this script
 // configures the compiler for a bare-metal environment.
+//
+// Step dependency chain (what zig build actually executes):
+//   zig build         → default_step → iso_step → iso_script → kernel_artifact → exe
+//   zig build run     → run_step     → iso_step → (same as above) → qemu
+//   zig build debug   → debug_step   → iso_step → (same as above) → qemu -s -S
+
+const std = @import("std");
+const Feature = std.Target.x86.Feature;
+
 pub fn build(b: *std.Build) void {
     var disabled_features = std.Target.Cpu.Feature.Set.empty;
     var enabled_features = std.Target.Cpu.Feature.Set.empty;
@@ -20,7 +26,7 @@ pub fn build(b: *std.Build) void {
     // Route floating-point through software so the compiler never needs SSE for floats.
     enabled_features.addFeature(@intFromEnum(Feature.soft_float));
 
-    // Target bare-metal x86_64 hardware
+    // Target bare-metal x86_64 hardware.
     // The 'freestanding' tag and 'none' ABI are required, so the
     // compiler doesn't attempt to link libc or assume underlying host OS capabilities.
     const target = b.resolveTargetQuery(std.Target.Query{
@@ -34,6 +40,30 @@ pub fn build(b: *std.Build) void {
     // Allows the developer to pass CLI flags (e.g -Doptimize=ReleaseSafe)
     // to strip debug assertions or optimize for speed/size.
     const optimize = b.standardOptimizeOption(.{});
+
+    // Bootloader selection. Defaults to Limine.
+    // To target a different bootloader: zig build -Dbootloader=grub
+    //
+    // The enum is the authoritative list of supported bootloaders.
+    // Adding a new bootloader means: add a variant here, add a case in
+    // bootloader/bootloader.zig's comptime switch, and create bootloader/<name>/init.zig.
+    // The compiler will reject any mismatch between these three sites.
+    const Bootloader = enum { limine };
+    const bootloader_choice = b.option(
+        Bootloader,
+        "bootloader",
+        "Bootloader to target (default: limine)",
+    ) orelse .limine;
+
+    // Build options: a Zig-generated module that embeds comptime constants into the kernel.
+    // Three steps:
+    //   1. b.addOptions()          — creates the Options build step (generates a .zig file)
+    //   2. build_options.addOption — registers a value to be written into that file
+    //   3. build_options.createModule() — turns the generated file into an importable module
+    // The kernel imports it as `@import("build_options")`, where it reads `bootloader`
+    // as a comptime constant to drive the bootloader dispatch switch.
+    const build_options = b.addOptions();
+    build_options.addOption(Bootloader, "bootloader", bootloader_choice);
 
     // Kernel specific compilation constraints.
     const root_module_opts = std.Build.Module.CreateOptions{
@@ -53,7 +83,20 @@ pub fn build(b: *std.Build) void {
         .root_module = b.createModule(root_module_opts),
     });
 
+    // Wire the generated build_options module into the kernel's root module.
+    // This makes `@import("build_options")` resolve inside any kernel source file.
+    // Without this, the comptime bootloader switch in bootloader.zig would fail to compile.
+    exe.root_module.addImport("build_options", build_options.createModule());
+
+    // PIE (Position Independent Executable) must be disabled for a kernel.
+    // PIE requires the linker to emit relocations so the binary can be loaded at any
+    // address, which conflicts with code_model = .kernel: the kernel code model assumes
+    // fixed high-half addresses and uses 32-bit-sign-extended addressing throughout.
     exe.pie = false;
+
+    // Zig 0.16.0 self-hosted backend bug (ziglang/zig#24717): the self-hosted x86_64
+    // backend miscompiles certain kernel patterns. Force LLVM as the codegen backend
+    // until the self-hosted backend is reliable for freestanding targets.
     exe.use_llvm = true;
 
     // Wiring the Linker Script to our executable.
@@ -76,9 +119,14 @@ pub fn build(b: *std.Build) void {
         "scripts/build-iso.sh",
     });
 
+    // ISO packaging depends on the kernel ELF being present in build/.
+    // build-iso.sh copies the ELF into the ISO staging tree before calling xorriso.
     iso_script.step.dependOn(&kernel_artifact.step);
 
     iso_step.dependOn(&iso_script.step);
+
+    // Make the ISO the default build output.
+    // `zig build` with no step name produces a bootable ISO, not just the ELF.
     b.default_step.dependOn(iso_step);
 
     const run_step = b.step("run", "Run kernel in QEMU");
@@ -88,9 +136,9 @@ pub fn build(b: *std.Build) void {
         "-cdrom",
         "build/os.iso",
         "-serial",
-        "stdio",
-        "-no-reboot",
-        "-no-shutdown",
+        "stdio", // forward COM1 output to the host terminal
+        "-no-reboot", // keep QEMU alive on triple fault (makes crashes visible)
+        "-no-shutdown", // keep QEMU alive on guest shutdown
     });
 
     qemu_cmd.step.dependOn(iso_step);
