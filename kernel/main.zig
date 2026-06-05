@@ -6,7 +6,7 @@
 // 3. Hand control to _start once setup is complete
 
 const limine = @import("limine.zig");
-const arch = @import("arch.zig");
+const arch = @import("arch/arch.zig");
 
 // Base revision: tells Limine which protocol version this kernel implements.
 // Limine reads this at boot and verifies compatibility.
