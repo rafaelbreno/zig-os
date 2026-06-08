@@ -143,3 +143,8 @@ pub fn print(comptime fmt: []const u8, args: anytype) !void {
         writeByte(byte);
     }
 }
+
+/// println: formatted output to the serial port plus newline.
+pub fn println(comptime fmt: []const u8, args: anytype) !void {
+    return print(fmt ++ "\n", args);
+}
