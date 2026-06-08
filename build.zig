@@ -55,6 +55,13 @@ pub fn build(b: *std.Build) void {
         "Bootloader to target (default: limine)",
     ) orelse .limine;
 
+    const Display = enum { framebuffer };
+    const display_choice = b.option(
+        Display,
+        "display",
+        "Display to target (default: framebuffer)",
+    ) orelse .framebuffer;
+
     // Build options: a Zig-generated module that embeds comptime constants into the kernel.
     // Three steps:
     //   1. b.addOptions()          — creates the Options build step (generates a .zig file)
@@ -63,7 +70,17 @@ pub fn build(b: *std.Build) void {
     // The kernel imports it as `@import("build_options")`, where it reads `bootloader`
     // as a comptime constant to drive the bootloader dispatch switch.
     const build_options = b.addOptions();
-    build_options.addOption(Bootloader, "bootloader", bootloader_choice);
+    build_options.addOption(
+        Bootloader,
+        "bootloader",
+        bootloader_choice,
+    );
+
+    build_options.addOption(
+        Display,
+        "display",
+        display_choice,
+    );
 
     // Kernel specific compilation constraints.
     const root_module_opts = std.Build.Module.CreateOptions{
