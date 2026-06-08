@@ -13,6 +13,8 @@ const arch = @import("arch/arch.zig");
 
 const display = @import("drivers/display/display.zig");
 
+const psf2 = @import("drivers/display/fonts/psf2.zig");
+
 /// _start: The kernel's entry point.
 ///
 /// The bootloader jumps here once it has completed its setup.
@@ -39,14 +41,22 @@ export fn _start() noreturn {
     // boot_info holds the HHDM offset, framebuffer geometry, and physical memory map —
     // the three things every phase from 2 onward depends on.
     const boot_info = bootloader.init();
-    arch.serial.print("boot_info.framebuffer: {?}\n", .{boot_info.framebuffer}) catch {};
-    arch.serial.print("boot_info.framebuffer.address in hex: {x}\n", .{boot_info.framebuffer.?.address}) catch {};
+    arch.serial.println("boot_info.framebuffer: {?}", .{boot_info.framebuffer}) catch {};
+    arch.serial.println("boot_info.framebuffer.address in hex: {x}", .{boot_info.framebuffer.?.address}) catch {};
 
     const display_instance = display.init(boot_info.framebuffer.?);
 
-    const color = 0x00FF0000;
+    const foreground_color = 0x00FFFFFF;
+    const background_color = 0x00000000;
 
-    display_instance.fillScreen(color);
+    display_instance.fillScreen(background_color);
+
+    const font = psf2.load(@embedFile("drivers/display/fonts/font.psf"));
+
+    arch.serial.println("Printing font: {any}", .{font.header.*}) catch {};
+
+    psf2.drawChar(font, display_instance, 'c', 0, 0, foreground_color, background_color);
+    psf2.drawChar(font, display_instance, 'C', 16, 0, foreground_color, background_color);
 
     // Disable interrupts. Critical at boot before we've set up the IDT.
     asm volatile ("cli");
