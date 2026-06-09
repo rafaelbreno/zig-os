@@ -15,6 +15,8 @@ const display = @import("drivers/display/display.zig");
 
 const psf2 = @import("drivers/display/fonts/psf2.zig");
 
+const console = @import("io/console/console.zig");
+
 /// _start: The kernel's entry point.
 ///
 /// The bootloader jumps here once it has completed its setup.
@@ -46,17 +48,15 @@ export fn _start() noreturn {
 
     const display_instance = display.init(boot_info.framebuffer.?);
 
-    const foreground_color = 0x00FFFFFF;
     const background_color = 0x00000000;
 
     display_instance.fillScreen(background_color);
 
     const font = psf2.load(@embedFile("drivers/display/fonts/font.psf"));
 
-    arch.serial.println("Printing font: {any}", .{font.header.*}) catch {};
+    var console_instance = console.init(display_instance, font);
 
-    psf2.drawChar(font, display_instance, 'c', 0, 0, foreground_color, background_color);
-    psf2.drawChar(font, display_instance, 'C', 16, 0, foreground_color, background_color);
+    console_instance.putString("Hello, kernel world!\nI'm here \t now spaced.");
 
     // Disable interrupts. Critical at boot before we've set up the IDT.
     asm volatile ("cli");
