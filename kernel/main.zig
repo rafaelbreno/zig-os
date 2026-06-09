@@ -11,6 +11,14 @@ const bootloader = @import("bootloader/bootloader.zig");
 // The concrete architecture implementation is selected at compile time via the target triple.
 const arch = @import("arch/arch.zig");
 
+const display = @import("drivers/display/display.zig");
+
+const psf2 = @import("drivers/display/fonts/psf2.zig");
+
+const console = @import("io/console/console.zig");
+
+const log = @import("log.zig");
+
 /// _start: The kernel's entry point.
 ///
 /// The bootloader jumps here once it has completed its setup.
@@ -37,7 +45,36 @@ export fn _start() noreturn {
     // boot_info holds the HHDM offset, framebuffer geometry, and physical memory map —
     // the three things every phase from 2 onward depends on.
     const boot_info = bootloader.init();
-    _ = boot_info; // Phase 2.2: framebuffer address; Phase 5: memory map for frame allocator.
+    arch.serial.println("boot_info.framebuffer: {?}", .{boot_info.framebuffer}) catch {};
+    arch.serial.println("boot_info.framebuffer.address in hex: {x}", .{boot_info.framebuffer.?.address}) catch {};
+
+    const display_instance = display.init(boot_info.framebuffer.?);
+
+    const background_color = 0x00000000;
+
+    display_instance.fillScreen(background_color);
+
+    const font = psf2.load(@embedFile("drivers/display/fonts/font.psf"));
+
+    var console_instance = console.init(display_instance, font);
+
+    console_instance.putString("Hello, kernel world!\nI'm here \t now spaced.");
+
+    log.init(&console_instance);
+
+    const log_instance = log.getInstance();
+
+    for (0..50) |i| {
+        log_instance.log("Hello from line {d} !!", .{i});
+        if (i % 10 == 0) {
+            log_instance.log("This is awesome {d}!!", .{i});
+        }
+    }
+
+    log_instance.info("This is an info message.", .{});
+    log_instance.debug("This is a debug message.", .{});
+    log_instance.warning("This is a warning message.", .{});
+    log_instance.err("This is an error message.", .{});
 
     // Disable interrupts. Critical at boot before we've set up the IDT.
     asm volatile ("cli");

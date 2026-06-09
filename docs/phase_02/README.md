@@ -42,45 +42,45 @@
 
 ## 2.2 Framebuffer output
 
-- [ ] **Read Limine's framebuffer response**
+- [x] **Read Limine's framebuffer response**
   - **Why:** Limine has already set up a linear framebuffer for you in long mode. You just need the pointer, width, height, and pitch.
   - **Study:** Limine's framebuffer request/response structures. What "pitch" means (it's not always `width * bpp`).
   - **What:** Access the response from your framebuffer request. Print its width, height, pitch, and address to serial.
   - **Verify:** Serial shows reasonable values (e.g., 1024x768, pitch 4096).
   - **Notes:**
 
-- [ ] **Paint your first pixel**
+- [x] **Paint your first pixel**
   - **Why:** Smallest possible framebuffer test.
   - **What:** Write a 32-bit color value to `framebuffer[0]`.
   - **Verify:** A single colored dot appears at the top-left of the QEMU window.
   - **Notes:**
 
-- [ ] **Fill the screen with a color**
+- [x] **Fill the screen with a color**
   - **Why:** Confirms you understand pitch and dimensions.
   - **What:** Loop over every pixel using `y * pitch + x * 4` indexing.
   - **Verify:** QEMU shows a solid color across the whole window.
   - **Notes:**
 
-- [ ] **Embed a bitmap font**
+- [x] **Embed a bitmap font**
   - **Why:** Drawing text requires glyph data. Don't write your own — use a standard PSF font or an 8x8 ROM font.
   - **Study:** The PSF1/PSF2 font formats, or just a public-domain 8x8 bitmap font header.
   - **What:** Add a font file to your project. Embed it with `@embedFile`.
   - **Verify:** You can index into the font and get the bitmap for the letter `A`.
   - **Notes:**
 
-- [ ] **Draw a single glyph**
+- [x] **Draw a single glyph**
   - **Why:** Verifies your font logic before building a full console.
   - **What:** Write `drawChar(c, x, y, fg, bg)`. For each bit in the glyph, write a pixel.
   - **Verify:** The letter `A` appears on the screen.
   - **Notes:**
 
-- [ ] **Build a console abstraction**
+- [x] **Build a console abstraction**
   - **Why:** You want `console.print("...")` to work like serial does.
   - **What:** Track cursor position. Implement `putChar` with `\n` handling. Wrap `std.fmt.format` over it.
   - **Verify:** Multi-line text prints correctly across the screen.
   - **Notes:**
 
-- [ ] **Implement scrolling**
+- [x] **Implement scrolling**
   - **Why:** Once the screen fills up, you need to shift content up.
   - **What:** When the cursor reaches the bottom, copy each row's memory up by one row height; clear the last row.
   - **Verify:** Print 100 lines in a loop — text scrolls smoothly.

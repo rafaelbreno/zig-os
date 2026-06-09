@@ -69,24 +69,6 @@ pub const SerialWriter = struct {
     buf: [256]u8 = undefined,
     writer: std.Io.Writer,
 
-    pub fn init() SerialWriter {
-        var self = SerialWriter{
-            .buf = undefined,
-            .writer = undefined,
-        };
-
-        self.writer = .{
-            .vtable = &.{
-                .drain = drain,
-            },
-            // Point the Writer's buffer at our stack-allocated buf.
-            // The Writer will use this for formatting before calling drain().
-            .buffer = &self.buf,
-        };
-
-        return self;
-    }
-
     /// drain: called by std.Io.Writer when the buffer is full or needs flushing.
     /// Receives slices of formatted data and sends each byte to the serial port.
     /// The last element of `data` is repeated `splat` times (for fill/padding).
@@ -142,4 +124,9 @@ pub fn print(comptime fmt: []const u8, args: anytype) !void {
     for (sw.buf[0..sw.writer.end]) |byte| {
         writeByte(byte);
     }
+}
+
+/// println: formatted output to the serial port plus newline.
+pub fn println(comptime fmt: []const u8, args: anytype) !void {
+    return print(fmt ++ "\n", args);
 }
