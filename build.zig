@@ -62,6 +62,13 @@ pub fn build(b: *std.Build) void {
         "Display to target (default: framebuffer)",
     ) orelse .framebuffer;
 
+    const Console = enum { framebuffer };
+    const console_choice = b.option(
+        Console,
+        "console",
+        "Console to target (default: framebuffer)",
+    ) orelse .framebuffer;
+
     // Build options: a Zig-generated module that embeds comptime constants into the kernel.
     // Three steps:
     //   1. b.addOptions()          — creates the Options build step (generates a .zig file)
@@ -80,6 +87,12 @@ pub fn build(b: *std.Build) void {
         Display,
         "display",
         display_choice,
+    );
+
+    build_options.addOption(
+        Console,
+        "console",
+        console_choice,
     );
 
     // Kernel specific compilation constraints.
