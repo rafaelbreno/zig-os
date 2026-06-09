@@ -17,6 +17,8 @@ const psf2 = @import("drivers/display/fonts/psf2.zig");
 
 const console = @import("io/console/console.zig");
 
+const log = @import("log.zig");
+
 /// _start: The kernel's entry point.
 ///
 /// The bootloader jumps here once it has completed its setup.
@@ -58,12 +60,21 @@ export fn _start() noreturn {
 
     console_instance.putString("Hello, kernel world!\nI'm here \t now spaced.");
 
+    log.init(&console_instance);
+
+    const log_instance = log.getInstance();
+
     for (0..50) |i| {
-        console_instance.println("Hello from line {d} !!", .{i}) catch {};
+        log_instance.log("Hello from line {d} !!", .{i});
         if (i % 10 == 0) {
-            console_instance.println("This is awesome {d}!!", .{i}) catch {};
+            log_instance.log("This is awesome {d}!!", .{i});
         }
     }
+
+    log_instance.info("This is an info message.", .{});
+    log_instance.debug("This is a debug message.", .{});
+    log_instance.warning("This is a warning message.", .{});
+    log_instance.err("This is an error message.", .{});
 
     // Disable interrupts. Critical at boot before we've set up the IDT.
     asm volatile ("cli");
