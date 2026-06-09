@@ -58,6 +58,13 @@ export fn _start() noreturn {
 
     console_instance.putString("Hello, kernel world!\nI'm here \t now spaced.");
 
+    for (0..50) |i| {
+        console_instance.putString("Hello!!\n");
+        if (i % 10 == 0) {
+            console_instance.putString("This is awesome!!\n");
+        }
+    }
+
     // Disable interrupts. Critical at boot before we've set up the IDT.
     asm volatile ("cli");
 

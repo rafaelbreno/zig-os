@@ -74,13 +74,13 @@
   - **Verify:** The letter `A` appears on the screen.
   - **Notes:**
 
-- [ ] **Build a console abstraction**
+- [x] **Build a console abstraction**
   - **Why:** You want `console.print("...")` to work like serial does.
   - **What:** Track cursor position. Implement `putChar` with `\n` handling. Wrap `std.fmt.format` over it.
   - **Verify:** Multi-line text prints correctly across the screen.
   - **Notes:**
 
-- [ ] **Implement scrolling**
+- [x] **Implement scrolling**
   - **Why:** Once the screen fills up, you need to shift content up.
   - **What:** When the cursor reaches the bottom, copy each row's memory up by one row height; clear the last row.
   - **Verify:** Print 100 lines in a loop — text scrolls smoothly.

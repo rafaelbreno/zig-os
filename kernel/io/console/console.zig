@@ -22,14 +22,22 @@ pub const Console = struct {
 
     pub fn putChar(self: *Self, char: u8) void {
         if (char == '\n') {
-            self.current_row += 1;
+            if (self.current_row == self.rows - 1) {
+                self.scroll();
+            } else {
+                self.current_row += 1;
+            }
             self.current_column = 0;
             return;
         }
         if (char == '\t') {
             self.current_column += 4;
             if (self.current_column >= self.columns) {
-                self.current_row += 1;
+                if (self.current_row == self.rows - 1) {
+                    self.scroll();
+                } else {
+                    self.current_row += 1;
+                }
                 self.current_column = 0;
             }
             return;
@@ -46,7 +54,11 @@ pub const Console = struct {
         );
         self.current_column += 1;
         if (self.current_column == self.columns) {
-            self.current_row += 1;
+            if (self.current_row == self.rows - 1) {
+                self.scroll();
+            } else {
+                self.current_row += 1;
+            }
             self.current_column = 0;
         }
     }
@@ -54,6 +66,19 @@ pub const Console = struct {
     pub fn putString(self: *Self, str: []const u8) void {
         for (str) |char| {
             self.putChar(char);
+        }
+    }
+
+    pub fn scroll(self: *Self) void {
+        const glyph_row_pixel = self.display.pixel_per_row * self.font.header.height;
+        const total_pixel = self.display.pixel_per_row * self.display.height;
+
+        for (0..total_pixel - glyph_row_pixel) |i| {
+            self.display.buffer[i] = self.display.buffer[i + glyph_row_pixel];
+        }
+
+        for (total_pixel - glyph_row_pixel..total_pixel) |i| {
+            self.display.buffer[i] = background_color;
         }
     }
 };
