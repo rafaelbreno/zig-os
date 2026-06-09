@@ -59,9 +59,9 @@ export fn _start() noreturn {
     console_instance.putString("Hello, kernel world!\nI'm here \t now spaced.");
 
     for (0..50) |i| {
-        console_instance.putString("Hello!!\n");
+        console_instance.println("Hello from line {d} !!", .{i}) catch {};
         if (i % 10 == 0) {
-            console_instance.putString("This is awesome!!\n");
+            console_instance.println("This is awesome {d}!!", .{i}) catch {};
         }
     }
 

@@ -1,3 +1,4 @@
+const std = @import("std");
 const build_options = @import("build_options");
 const DisplayInfo = @import("../../drivers/display/display.zig").DisplayInfo;
 const psf2 = @import("../../drivers/display/fonts/psf2.zig");
@@ -81,8 +82,80 @@ pub const Console = struct {
             self.display.buffer[i] = background_color;
         }
     }
+
+    /// print: formatted output to the serial port.
+    /// Mimics std.debug.print, but routes output to COM1 instead of stderr.
+    /// Usage: print("hello {s}, number: {d}\n", .{ "world", 42 })
+    pub fn print(self: *Console, comptime fmt: []const u8, args: anytype) !void {
+        var cw = ConsoleWriter{
+            .buf = undefined,
+            .writer = undefined,
+            .console = self,
+        };
+
+        cw.writer = .{
+            .vtable = &.{ .drain = ConsoleWriter.drain },
+            .buffer = &cw.buf,
+        };
+
+        try cw.writer.print(fmt, args);
+
+        // Flush remaining bytes
+        for (cw.buf[0..cw.writer.end]) |byte| {
+            self.putChar(byte);
+        }
+    }
+
+    /// println: formatted output to the serial port plus newline.
+    pub fn println(self: *Console, comptime fmt: []const u8, args: anytype) !void {
+        return self.print(fmt ++ "\n", args);
+    }
 };
 
 pub fn init(display: DisplayInfo, font: Font) Console {
     return impl.init(display, font);
 }
+
+pub const ConsoleWriter = struct {
+    // 256 bytes is enough for a typical formatted log line.
+    // If a single formatted value exceeds this, drain() will be called mid-format
+    // to flush the buffer and free up space.
+    buf: [256]u8 = undefined,
+    writer: std.Io.Writer,
+    console: *Console,
+
+    /// drain: called by std.Io.Writer when the buffer is full or needs flushing.
+    /// Receives slices of formatted data and sends each byte to the serial port.
+    /// The last element of `data` is repeated `splat` times (for fill/padding).
+    fn drain(w: *std.Io.Writer, data: []const []const u8, splat: usize) std.Io.Writer.Error!usize {
+        const cw: *ConsoleWriter = @fieldParentPtr("writer", w);
+        // All elements except the last are plain slices to write once.
+        const slice = data[0 .. data.len - 1];
+
+        // The last element is the "pattern" — repeated `splat` times for padding.
+        const pattern = data[slice.len];
+
+        var written: usize = 0;
+
+        // Write each plain slice byte by byte.
+        for (slice) |bytes| {
+            for (bytes) |byte| {
+                cw.console.putChar(byte);
+            }
+            written += bytes.len;
+        }
+
+        // Write the pattern `splat` times (used for alignment padding).
+        for (0..splat) |_| {
+            for (pattern) |byte| {
+                cw.console.putChar(byte);
+            }
+            written += pattern.len;
+        }
+
+        // Reset the Writer's buffer position so it can be reused.
+        w.end = 0;
+
+        return written;
+    }
+};
